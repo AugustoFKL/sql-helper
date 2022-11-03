@@ -1,5 +1,7 @@
 #![warn(clippy::pedantic, clippy::all)]
 
+pub mod ast;
+
 #[must_use]
 pub fn add(left: usize, right: usize) -> usize {
     left + right

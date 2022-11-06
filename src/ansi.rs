@@ -66,6 +66,6 @@ pub enum Statement {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct CreateSchema {
     /// `<schema name clause>`
-    name_clause: SchemaNameClause,
+    schema_name_clause: SchemaNameClause,
     // TODO schema element
 }

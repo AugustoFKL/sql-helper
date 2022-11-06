@@ -1,10 +1,8 @@
-use nom::branch::{alt, permutation};
-use nom::bytes::complete::{tag, take_while1};
-use nom::character::complete::alpha1;
 use nom::character::is_alphanumeric;
-use nom::combinator::{map, peek};
-use nom::sequence::delimited;
-use nom::IResult;
+
+/// Parsers functions for generic structures as `Ident`, and generic concepts,
+/// as the end of a statement.
+pub mod parsers;
 
 /// SQL identifiers [(1)].
 ///
@@ -55,48 +53,24 @@ impl Ident {
     }
 }
 
-/// Parses a sql identifier.
-///
-/// Since this is a common structure, the resultant identifier is not
-/// necessarily based on any dialects and, therefore, may not actually be valid
-/// for a given database. The caller must validate it accordingly with its own
-/// valid syntax.
-///
-/// # Errors
-/// If no possible identifier is found, or the identifier has not a valid quote
-/// style, this method will return an error.
-pub fn parse_ident(i: &[u8]) -> IResult<&[u8], Ident> {
-    let double_quoted_parse = map(
-        delimited(tag("\""), take_while1(is_sql_identifier), tag("\"")),
-        |bytes| Ident::new_quoted(bytes, QuoteStyle::DoubleQuote),
-    );
-
-    // Here I guarantee that non-quoted identifiers must start with characters
-
-    let unquoted = map(
-        permutation((peek(alpha1), take_while1(is_sql_identifier))),
-        |(_, bytes)| Ident::new(bytes),
-    );
-
-    alt((double_quoted_parse, unquoted))(i)
-}
-
 /// Returns true if the given character is a valid identifier character.
 #[inline]
 #[must_use]
 pub fn is_sql_identifier(chr: u8) -> bool {
-    is_alphanumeric(chr) || chr == '_' as u8 || chr == '@' as u8
+    is_alphanumeric(chr) || chr == b'_' || chr == b'@'
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::common::parsers::ident;
+
     use super::*;
 
     #[test]
     fn test_parse_ident() {
         macro_rules! validate {
             ($input:expr, $expected:expr) => {
-                let (_, parsed) = parse_ident($input).unwrap();
+                let (_, parsed) = ident($input).unwrap();
                 assert_eq!(parsed, $expected);
             };
         }
@@ -104,6 +78,7 @@ mod tests {
         validate!(b"name_1", Ident::new(b"name_1"));
         validate!(b"name1", Ident::new(b"name1"));
         validate!(b"spaced name", Ident::new(b"spaced"));
+        validate!(b"   Potato", Ident::new(b"Potato"));
         validate!(
             b"\"name_1\"",
             Ident::new_quoted(b"name_1", QuoteStyle::DoubleQuote)
@@ -112,8 +87,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_parse_invalid_ident() {
-        parse_ident(b"1").unwrap();
+        let result = ident(b"1");
+        assert!(result.is_err());
     }
 }

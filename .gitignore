@@ -73,6 +73,8 @@ __pycache__/
 node_modules
 package-lock.json
 package.json
+.husky
+commitlint.config.js
 
 ## Rustdoc GUI tests
 src/test/rustdoc-gui/src/**.lock

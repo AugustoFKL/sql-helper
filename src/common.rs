@@ -1,10 +1,10 @@
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{tag, take_while1};
-use nom::character::complete::{alpha1, alphanumeric1, char, space0};
-use nom::character::{is_alphabetic, is_alphanumeric};
-use nom::combinator::{cond, map, peek};
-use nom::sequence::{delimited, preceded};
-use nom::{IResult, InputTake};
+use nom::character::complete::alpha1;
+use nom::character::is_alphanumeric;
+use nom::combinator::{map, peek};
+use nom::sequence::delimited;
+use nom::IResult;
 
 /// SQL identifiers [(1)].
 ///
@@ -29,18 +29,15 @@ pub enum QuoteStyle {
 impl Ident {
     /// Create a new identifier without a quote style.
     #[must_use]
-    pub fn new(value: &str) -> Self {
-        Self {
-            value: value.to_owned(),
-            quote_style: QuoteStyle::None,
-        }
+    pub fn new(value: &[u8]) -> Self {
+        Self::new_quoted(value, QuoteStyle::None)
     }
 
     /// Create a new identifier with the given value and quote style.
     #[must_use]
-    pub fn new_quoted(value: &str, quote_style: QuoteStyle) -> Self {
+    pub fn new_quoted(value: &[u8], quote_style: QuoteStyle) -> Self {
         Self {
-            value: value.to_owned(),
+            value: String::from_utf8_lossy(value).to_string(),
             quote_style,
         }
     }
@@ -68,40 +65,55 @@ impl Ident {
 /// # Errors
 /// If no possible identifier is found, or the identifier has not a valid quote
 /// style, this method will return an error.
-pub fn parse_ident(i: &str) -> IResult<&str, Ident> {
+pub fn parse_ident(i: &[u8]) -> IResult<&[u8], Ident> {
     let double_quoted_parse = map(
         delimited(tag("\""), take_while1(is_sql_identifier), tag("\"")),
-        |str| Ident::new_quoted(str, QuoteStyle::DoubleQuote),
+        |bytes| Ident::new_quoted(bytes, QuoteStyle::DoubleQuote),
     );
 
     // Here I guarantee that non-quoted identifiers must start with characters
 
     let unquoted = map(
         permutation((peek(alpha1), take_while1(is_sql_identifier))),
-        |(_, str)| Ident::new(str),
+        |(_, bytes)| Ident::new(bytes),
     );
 
     alt((double_quoted_parse, unquoted))(i)
 }
 
+/// Returns true if the given character is a valid identifier character.
 #[inline]
-pub fn is_sql_identifier(chr: char) -> bool {
-    is_alphanumeric(chr as u8) || chr == '_' || chr == '@'
+#[must_use]
+pub fn is_sql_identifier(chr: u8) -> bool {
+    is_alphanumeric(chr) || chr == '_' as u8 || chr == '@' as u8
 }
 
 #[cfg(test)]
 mod tests {
-    use test_case::test_case;
-
     use super::*;
 
-    #[test_case("name_1", Ident::new("name_1"))]
-    #[test_case("name1", Ident::new("name1"))]
-    #[test_case("giant name", Ident::new("giant"))]
-    #[test_case(r#""name_1""#, Ident::new_quoted("name_1", QuoteStyle::DoubleQuote))]
-    #[test_case(r#""1""#, Ident::new_quoted("1", QuoteStyle::DoubleQuote))]
-    fn test_parse_ident(input: &str, expected: Ident) {
-        let (_, parsed) = parse_ident(input).unwrap();
-        assert_eq!(parsed, expected)
+    #[test]
+    fn test_parse_ident() {
+        macro_rules! validate {
+            ($input:expr, $expected:expr) => {
+                let (_, parsed) = parse_ident($input).unwrap();
+                assert_eq!(parsed, $expected);
+            };
+        }
+
+        validate!(b"name_1", Ident::new(b"name_1"));
+        validate!(b"name1", Ident::new(b"name1"));
+        validate!(b"spaced name", Ident::new(b"spaced"));
+        validate!(
+            b"\"name_1\"",
+            Ident::new_quoted(b"name_1", QuoteStyle::DoubleQuote)
+        );
+        validate!(b"\"1\"", Ident::new_quoted(b"1", QuoteStyle::DoubleQuote));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_parse_invalid_ident() {
+        parse_ident(b"1").unwrap();
     }
 }

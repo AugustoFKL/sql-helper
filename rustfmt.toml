@@ -1,2 +1,6 @@
 # Break comments to fit within the line
 wrap_comments = true
+
+format_macro_bodies = true
+
+format_code_in_doc_comments = true

@@ -13,3 +13,6 @@
 ///
 /// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html
 pub mod ansi;
+
+/// AST structures and functions generic types.
+pub mod common;

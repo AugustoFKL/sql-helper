@@ -6,7 +6,9 @@ use nom::multi::separated_list1;
 use nom::sequence::tuple;
 use nom::IResult;
 
-use crate::ansi::{CreateSchema, DataType, SchemaName, SchemaNameClause, Statement};
+use crate::ansi::{
+    CreateSchema, DataType, DropBehavior, DropSchema, SchemaName, SchemaNameClause, Statement,
+};
 use crate::common::parsers::{ident, parse_statement_terminator};
 
 /// Parses `ANSI` data type [(1)], [(2)].
@@ -50,9 +52,10 @@ fn parse_character_string(input: &str) -> IResult<&str, DataType> {
 ///
 /// [(1)]: crate::ansi::Statement
 pub fn parse_statement(i: &[u8]) -> IResult<&[u8], Statement> {
-    alt((map(parse_create_schema, |stmt| {
-        Statement::CreateSchema(stmt)
-    }),))(i)
+    alt((
+        map(create_schema, Statement::CreateSchema),
+        map(drop_schema, Statement::DropSchema),
+    ))(i)
 }
 
 /// Parses a `CREATE SCHEMA` [(1)] statement.
@@ -62,18 +65,45 @@ pub fn parse_statement(i: &[u8]) -> IResult<&[u8], Statement> {
 /// statement is not supported.
 ///
 /// [(1)]: crate::ansi::CreateSchema
-fn parse_create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
+fn create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
     let (remaining_input, (_, _, _, schema_name_clause, _)) = tuple((
         tag_no_case("CREATE"),
         multispace0,
         tag_no_case("SCHEMA"),
-        parse_schema_name_clause,
+        schema_name_clause,
         parse_statement_terminator,
     ))(i)?;
 
     let create_schema = CreateSchema { schema_name_clause };
 
     Ok((remaining_input, create_schema))
+}
+
+/// Parses a `DROP SCHEMA` [(1)] statement.
+///
+/// # Errors
+/// This method will raise an error if the input is malformed, or if the
+/// statement is not supported.
+///
+/// [(1)]: crate::ansi::DropSchema
+fn drop_schema(i: &[u8]) -> IResult<&[u8], DropSchema> {
+    let (remaining_input, (_, _, _, _, schema_name, _, drop_behavior, _)) = tuple((
+        tag_no_case("DROP"),
+        multispace0,
+        tag_no_case("SCHEMA"),
+        multispace0,
+        schema_name,
+        multispace0,
+        drop_behavior,
+        parse_statement_terminator,
+    ))(i)?;
+
+    let drop_schema = DropSchema {
+        schema_name,
+        drop_behavior,
+    };
+
+    Ok((remaining_input, drop_schema))
 }
 
 /// Parses a `<schema name clause>` [(1)].
@@ -83,7 +113,7 @@ fn parse_create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
 /// unsupported features.
 ///
 /// [(1)]: SchemaNameClause
-fn parse_schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
+fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
     let (remaining, (_, schema_name_clause)) = tuple((
         multispace0,
         (alt((
@@ -135,6 +165,20 @@ fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
     };
 
     Ok((i, schema_name))
+}
+
+/// Parses a `<drop behavior>` [(1)].
+///
+/// # Errors
+/// This function returns an error if the drop behavior is nor `RESTRICT` or
+/// `CASCADE`.
+///
+/// [(1)]: DropBehavior
+fn drop_behavior(i: &[u8]) -> IResult<&[u8], DropBehavior> {
+    alt((
+        map(tag_no_case("CASCADE"), |_| DropBehavior::Cascade),
+        map(tag_no_case("RESTRICT"), |_| DropBehavior::Restrict),
+    ))(i)
 }
 
 #[cfg(test)]

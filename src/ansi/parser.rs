@@ -6,8 +6,7 @@ use nom::multi::separated_list1;
 use nom::sequence::tuple;
 use nom::IResult;
 
-use crate::ansi::ast::{SchemaName, SchemaNameClause};
-use crate::ansi::{CreateSchema, DataType, Statement};
+use crate::ansi::{CreateSchema, DataType, SchemaName, SchemaNameClause, Statement};
 use crate::common::parsers::{ident, parse_statement_terminator};
 
 /// Parses `ANSI` data type [(1)], [(2)].
@@ -18,6 +17,7 @@ use crate::common::parsers::{ident, parse_statement_terminator};
 ///
 /// [(1)]: crate::ansi::DataType
 /// [(2)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#_6_1_data_type
+#[allow(unused)]
 fn parse_data_type(input: &str) -> IResult<&str, DataType> {
     alt((parse_character_string,))(input)
 }
@@ -29,6 +29,7 @@ fn parse_data_type(input: &str) -> IResult<&str, DataType> {
 /// exists in the current dialect.
 ///
 /// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#character-string-type
+#[allow(unused)]
 fn parse_character_string(input: &str) -> IResult<&str, DataType> {
     alt((
         map(tag_no_case("CHARACTER VARYING"), |_| {

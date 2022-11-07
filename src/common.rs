@@ -1,3 +1,5 @@
+use std::fmt;
+
 use nom::character::is_alphanumeric;
 
 /// Parsers functions for generic structures as `Ident`, and generic concepts,
@@ -53,6 +55,19 @@ impl Ident {
     }
 }
 
+impl fmt::Display for Ident {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.quote_style() {
+            QuoteStyle::None => {
+                write!(f, "{}", self.value)
+            }
+            QuoteStyle::DoubleQuote => {
+                write!(f, "\"{}\"", self.value)
+            }
+        }
+    }
+}
+
 /// Returns true if the given character is a valid identifier character.
 #[inline]
 #[must_use]
@@ -78,7 +93,6 @@ mod tests {
         validate!(b"name_1", Ident::new(b"name_1"));
         validate!(b"name1", Ident::new(b"name1"));
         validate!(b"spaced name", Ident::new(b"spaced"));
-        validate!(b"   Potato", Ident::new(b"Potato"));
         validate!(
             b"\"name_1\"",
             Ident::new_quoted(b"name_1", QuoteStyle::DoubleQuote)

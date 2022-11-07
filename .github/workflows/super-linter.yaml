@@ -26,3 +26,4 @@ jobs:
         env:
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EDITORCONFIG_FILE_NAME: ".editorconfig"

@@ -1,23 +1,13 @@
 use crate::ansi::ast::SchemaNameClause;
 
-#[allow(unused)]
-/// `ANSI` data types [(1)].
-///
-/// Includes the additional structures for that type (precisions, lengths, etc.)
-/// and the parser itself.
-///
-/// [(1)]: DataType
-pub mod data_type;
-
 /// `ANSI` high-level AST structure.
 ///
-/// Includes most statement [(1)] and their high-level parser.
+/// Includes most statement [(1)].
 ///
 /// [(1)]: Statement
 pub mod ast;
-
-/// Errors when using the `ANSI` dialect.
-pub enum Error {}
+/// `ANSI` parser methods.
+pub mod parser;
 
 /// `ANSI` data types [(1)].
 ///

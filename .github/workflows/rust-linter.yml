@@ -1,7 +1,13 @@
-on: [ pull_request ]
+---
+name: Super Linter
 
-name: Lints rust
+on:
+  pull_request:
 
+  push:
+    branches:
+      - master
+      - dev
 jobs:
   clippy:
     name: Clippy

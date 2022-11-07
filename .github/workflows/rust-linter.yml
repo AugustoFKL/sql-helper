@@ -1,5 +1,5 @@
 ---
-name: Super Linter
+name: Rust Linters
 
 on:
   pull_request:

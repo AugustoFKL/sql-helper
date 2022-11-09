@@ -109,23 +109,55 @@ pub enum DataType {
     /// CHARACTER\[([<character_length>])].
     ///
     /// [<character_length>]: CharacterLength
-    Character,
+    Character(Option<CharacterLength>),
     /// CHAR\[([<character_length>])].
     ///
     /// [<character_length>]: CharacterLength
-    Char,
+    Char(Option<CharacterLength>),
     /// CHARACTER VARYING\[([<character_length>])].
     ///
     /// [<character_length>]: CharacterLength
-    CharacterVarying,
+    CharacterVarying(Option<CharacterLength>),
     /// CHAR VARYING\[([<character_length>])].
     ///
     /// [<character_length>]: CharacterLength
-    CharVarying,
+    CharVarying(Option<CharacterLength>),
     /// VARCHAR\[([<character_length>])].
     ///
     /// [<character_length>]: CharacterLength
-    Varchar,
+    Varchar(Option<CharacterLength>),
+}
+
+/// Character length of a string literal [(1)].
+///
+/// # Supported syntax
+/// ```doc
+/// <length> [<character length units>]
+/// ```
+///
+/// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#character-length
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct CharacterLength {
+    /// `<length>`
+    length: u32,
+    /// `[<character length units>]`
+    opt_units: Option<CharacterLengthUnits>,
+}
+
+/// Character length units of a string literal [(1)].
+///
+/// # Supported syntax
+/// ```doc
+/// [CHARACTERS|OCTETS]
+/// ```
+///
+/// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#char-length-units
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum CharacterLengthUnits {
+    /// `CHARACTERS`
+    Characters,
+    /// `OCTETS`
+    Octets,
 }
 
 impl fmt::Display for Statement {
@@ -246,7 +278,7 @@ impl SchemaName {
 impl fmt::Display for SchemaName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(catalog_name) = self.opt_catalog_name() {
-            write!(f, "{}.", catalog_name)?;
+            write!(f, "{catalog_name}.")?;
         }
 
         write!(f, "{}", self.name())?;
@@ -306,7 +338,7 @@ impl fmt::Display for ColumnDefinition {
         write!(f, "{}", self.column_name)?;
 
         if let Some(data_type) = self.opt_data_type() {
-            write!(f, " {}", data_type)?;
+            write!(f, " {data_type}")?;
         }
 
         Ok(())
@@ -316,23 +348,95 @@ impl fmt::Display for ColumnDefinition {
 impl fmt::Display for DataType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Character => {
+            Self::Character(opt_len) => {
                 write!(f, "CHARACTER")?;
+
+                if let Some(len) = opt_len {
+                    write!(f, "({len})")?;
+                }
             }
-            Self::Char => {
+            Self::Char(opt_len) => {
                 write!(f, "CHAR")?;
+
+                if let Some(len) = opt_len {
+                    write!(f, "({len})")?;
+                }
             }
-            Self::CharacterVarying => {
+            Self::CharacterVarying(opt_len) => {
                 write!(f, "CHARACTER VARYING")?;
+
+                if let Some(len) = opt_len {
+                    write!(f, "({len})")?;
+                }
             }
-            Self::CharVarying => {
+            Self::CharVarying(opt_len) => {
                 write!(f, "CHAR VARYING")?;
+
+                if let Some(len) = opt_len {
+                    write!(f, "({len})")?;
+                }
             }
-            Self::Varchar => {
+            Self::Varchar(opt_len) => {
                 write!(f, "VARCHAR")?;
+
+                if let Some(len) = opt_len {
+                    write!(f, "({len})")?;
+                }
             }
         }
 
+        Ok(())
+    }
+}
+
+impl CharacterLength {
+    /// Creates a new `CharacterLength`.
+    ///
+    /// Optional fields should be set via `with_...` methods.
+    #[must_use]
+    pub fn new(length: u32) -> Self {
+        Self {
+            length,
+            opt_units: None,
+        }
+    }
+
+    /// Sets the units attribute value.
+    pub fn with_units(&mut self, opt_units: Option<CharacterLengthUnits>) -> &mut Self {
+        self.opt_units = opt_units;
+        self
+    }
+
+    /// Returns the length attribute value.
+    #[must_use]
+    pub fn length(&self) -> u32 {
+        self.length
+    }
+
+    /// Returns the length attribute value.
+    #[must_use]
+    pub fn opt_units(&self) -> Option<CharacterLengthUnits> {
+        self.opt_units
+    }
+}
+impl fmt::Display for CharacterLength {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.length)?;
+
+        if let Some(units) = self.opt_units() {
+            write!(f, " {units}")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for CharacterLengthUnits {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Characters => write!(f, "CHARACTERS")?,
+            Self::Octets => write!(f, "OCTETS")?,
+        }
         Ok(())
     }
 }

@@ -1,14 +1,14 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
-use nom::character::complete::multispace0;
+use nom::character::complete::{multispace0, multispace1, u32};
 use nom::combinator::{map, opt};
 use nom::multi::separated_list1;
-use nom::sequence::tuple;
+use nom::sequence::{delimited, tuple};
 use nom::IResult;
 
 use crate::ansi::{
-    ColumnDefinition, CreateSchema, DataType, DropBehavior, DropSchema, SchemaName,
-    SchemaNameClause, Statement,
+    CharacterLength, CharacterLengthUnits, ColumnDefinition, CreateSchema, DataType, DropBehavior,
+    DropSchema, SchemaName, SchemaNameClause, Statement,
 };
 use crate::common::parsers::{ident, parse_statement_terminator};
 
@@ -32,14 +32,64 @@ fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
 #[allow(unused)]
 fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
     alt((
-        map(tag_no_case("CHARACTER VARYING"), |_| {
-            DataType::CharacterVarying
-        }),
-        map(tag_no_case("CHAR VARYING"), |_| DataType::CharVarying),
-        map(tag_no_case("CHARACTER"), |_| DataType::Character),
-        map(tag_no_case("VARCHAR"), |_| DataType::Varchar),
-        map(tag_no_case("CHAR"), |_| DataType::Char),
+        map(
+            tuple((tag_no_case("CHARACTER VARYING"), character_length)),
+            |(_, opt_len)| DataType::CharacterVarying(opt_len),
+        ),
+        map(
+            tuple((tag_no_case("CHAR VARYING"), character_length)),
+            |(_, opt_len)| DataType::CharVarying(opt_len),
+        ),
+        map(
+            tuple((tag_no_case("CHARACTER"), character_length)),
+            |(_, opt_len)| DataType::Character(opt_len),
+        ),
+        map(
+            tuple((tag_no_case("VARCHAR"), character_length)),
+            |(_, opt_len)| DataType::Varchar(opt_len),
+        ),
+        map(
+            tuple((tag_no_case("CHAR"), character_length)),
+            |(_, opt_len)| DataType::Char(opt_len),
+        ),
     ))(input)
+}
+
+/// Parses optional `CharacterLength` information.
+///
+/// # Errors
+/// This function will throw an error if the input string is malformed, invalid
+/// or empty. As the implementation is complete, there's no possible
+/// unimplemented error scenarios.
+/// ```
+fn character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
+    let characters_mapping = alt((
+        map(tag_no_case("CHARACTERS"), |_| {
+            CharacterLengthUnits::Characters
+        }),
+        map(tag_no_case("OCTETS"), |_| CharacterLengthUnits::Octets),
+    ));
+
+    let interior = map(
+        tuple((
+            u32,
+            opt(map(
+                tuple((multispace1, characters_mapping)),
+                |(_, units)| units,
+            )),
+        )),
+        |(length, opt_units)| {
+            let mut character_length = CharacterLength::new(length);
+            character_length.with_units(opt_units);
+            character_length
+        },
+    );
+
+    opt(delimited(
+        tuple((multispace0, tag("("))),
+        interior,
+        tuple((tag(")"), multispace0)),
+    ))(i)
 }
 
 /// Parses a `Statement` [(1)] from the give input.
@@ -119,7 +169,7 @@ fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
                 tuple((
                     schema_name,
                     multispace0,
-                    tag("AUTHORIZATION"),
+                    tag_no_case("AUTHORIZATION"),
                     multispace0,
                     ident,
                     multispace0,
@@ -129,7 +179,7 @@ fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
                 },
             ),
             map(
-                tuple((tag("AUTHORIZATION"), multispace0, ident)),
+                tuple((tag_no_case("AUTHORIZATION"), multispace0, ident)),
                 |(_, _, authorization_name)| SchemaNameClause::Authorization(authorization_name),
             ),
             map(schema_name, |schema_name| {
@@ -209,16 +259,121 @@ mod tests {
 
     use super::*;
 
-    #[test_case("CHARACTER VARYING", DataType::CharacterVarying)]
-    #[test_case("CHAR VARYING", DataType::CharVarying)]
-    #[test_case("CHARACTER", DataType::Character)]
-    #[test_case("VARCHAR", DataType::Varchar)]
-    #[test_case("CHAR", DataType::Char)]
-    fn parse_character_string(input: &str, expected: DataType) {
-        let (remaining, parsed) = data_type(input.as_ref()).unwrap();
-        assert_eq!(expected, parsed);
-        assert_str_eq!(input, parsed.to_string());
-        assert!(remaining.is_empty());
+    #[test]
+    fn parse_character_string() {
+        macro_rules! assert_expected {
+            ($input:expr, $expected:expr) => {{
+                let (remaining, parsed) = data_type($input.as_ref()).unwrap();
+                assert_eq!($expected, parsed);
+                assert_str_eq!($input, parsed.to_string());
+                assert!(remaining.is_empty());
+            }};
+        }
+
+        assert_expected!("CHARACTER VARYING", DataType::CharacterVarying(None));
+
+        assert_expected!(
+            "CHARACTER VARYING(20)",
+            DataType::CharacterVarying(Some(*CharacterLength::new(20).with_units(None)))
+        );
+
+        assert_expected!(
+            "CHARACTER VARYING(20 OCTETS)",
+            DataType::CharacterVarying(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+            ))
+        );
+
+        assert_expected!(
+            "CHARACTER VARYING(20 CHARACTERS)",
+            DataType::CharacterVarying(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+            ))
+        );
+
+        assert_expected!("CHAR VARYING", DataType::CharVarying(None));
+
+        assert_expected!(
+            "CHAR VARYING(20)",
+            DataType::CharVarying(Some(*CharacterLength::new(20).with_units(None)))
+        );
+
+        assert_expected!(
+            "CHAR VARYING(20 OCTETS)",
+            DataType::CharVarying(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+            ))
+        );
+
+        assert_expected!(
+            "CHAR VARYING(20 CHARACTERS)",
+            DataType::CharVarying(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+            ))
+        );
+
+        assert_expected!("CHARACTER", DataType::Character(None));
+
+        assert_expected!(
+            "CHARACTER(20)",
+            DataType::Character(Some(*CharacterLength::new(20).with_units(None)))
+        );
+
+        assert_expected!(
+            "CHARACTER(20 OCTETS)",
+            DataType::Character(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+            ))
+        );
+
+        assert_expected!(
+            "CHARACTER(20 CHARACTERS)",
+            DataType::Character(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+            ))
+        );
+
+        assert_expected!("VARCHAR", DataType::Varchar(None));
+
+        assert_expected!(
+            "VARCHAR(20)",
+            DataType::Varchar(Some(*CharacterLength::new(20).with_units(None)))
+        );
+
+        assert_expected!(
+            "VARCHAR(20 OCTETS)",
+            DataType::Varchar(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+            ))
+        );
+
+        assert_expected!(
+            "VARCHAR(20 CHARACTERS)",
+            DataType::Varchar(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+            ))
+        );
+
+        assert_expected!("CHAR", DataType::Char(None));
+
+        assert_expected!(
+            "CHAR(20)",
+            DataType::Char(Some(*CharacterLength::new(20).with_units(None)))
+        );
+
+        assert_expected!(
+            "CHAR(20 OCTETS)",
+            DataType::Char(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+            ))
+        );
+
+        assert_expected!(
+            "CHAR(20 CHARACTERS)",
+            DataType::Char(Some(
+                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+            ))
+        );
     }
 
     #[test]
@@ -227,7 +382,7 @@ mod tests {
         let (_, column_def_1) = column_definition(input_1.as_ref()).unwrap();
         let expected_1 = ColumnDefinition {
             column_name: Ident::new(b"name"),
-            opt_data_type: Some(DataType::Varchar),
+            opt_data_type: Some(DataType::Varchar(None)),
         };
         assert_eq!(column_def_1, expected_1);
 

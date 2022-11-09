@@ -7,6 +7,8 @@
 //! dialect-specific implementations, instead of using the way too genetic
 //! implementation from the parser library.
 
+extern crate core;
+
 /// AST structures and functions for `ANSI` data type.
 ///
 /// Based on documentation from ANSI standard 2016 [(1)].

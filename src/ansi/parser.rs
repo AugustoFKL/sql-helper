@@ -1,38 +1,36 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::character::complete::multispace0;
-use nom::combinator::map;
+use nom::combinator::{map, opt};
 use nom::multi::separated_list1;
 use nom::sequence::tuple;
 use nom::IResult;
 
 use crate::ansi::{
-    CreateSchema, DataType, DropBehavior, DropSchema, SchemaName, SchemaNameClause, Statement,
+    ColumnDefinition, CreateSchema, DataType, DropBehavior, DropSchema, SchemaName,
+    SchemaNameClause, Statement,
 };
 use crate::common::parsers::{ident, parse_statement_terminator};
 
-/// Parses `ANSI` data type [(1)], [(2)].
+/// Parses `ANSI` data type [(1)].
 ///
 /// # Errors
 /// This function returns an error if the data type is not supported or not
 /// exists in the current dialect.
 ///
 /// [(1)]: crate::ansi::DataType
-/// [(2)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#_6_1_data_type
 #[allow(unused)]
-fn parse_data_type(input: &str) -> IResult<&str, DataType> {
-    alt((parse_character_string,))(input)
+fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
+    alt((character_string,))(input)
 }
 
-/// Parses `ANSI` character string data types [(1)].
+/// Parses `ANSI` character string data types.
 ///
 /// # Errors
 /// This function returns an error if the data type is not supported or not
 /// exists in the current dialect.
-///
-/// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#character-string-type
 #[allow(unused)]
-fn parse_character_string(input: &str) -> IResult<&str, DataType> {
+fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         map(tag_no_case("CHARACTER VARYING"), |_| {
             DataType::CharacterVarying
@@ -167,6 +165,27 @@ fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
     Ok((i, schema_name))
 }
 
+/// Parses a `<column definition>` [(1)].
+///
+///
+/// # Errors
+/// This function will throw an error if the column definition is invalid or
+/// malformed. This includes unsupported features such as data types.
+///
+/// [(1)]: crate::ansi::ColumnDefinition
+pub fn column_definition(i: &[u8]) -> IResult<&[u8], ColumnDefinition> {
+    let (remaining, (column_name, _, opt_data_type)) =
+        tuple((ident, multispace0, opt(data_type)))(i)?;
+
+    let mut column_def = ColumnDefinition::new(&column_name);
+
+    if let Some(data_type) = opt_data_type {
+        column_def.with_data_type(data_type);
+    }
+
+    Ok((remaining, column_def))
+}
+
 /// Parses a `<drop behavior>` [(1)].
 ///
 /// # Errors
@@ -183,7 +202,10 @@ fn drop_behavior(i: &[u8]) -> IResult<&[u8], DropBehavior> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_str_eq;
     use test_case::test_case;
+
+    use crate::common::Ident;
 
     use super::*;
 
@@ -193,8 +215,37 @@ mod tests {
     #[test_case("VARCHAR", DataType::Varchar)]
     #[test_case("CHAR", DataType::Char)]
     fn parse_character_string(input: &str, expected: DataType) {
-        let (remaining, parsed) = parse_data_type(input).unwrap();
-        assert_eq!(parsed, expected);
+        let (remaining, parsed) = data_type(input.as_ref()).unwrap();
+        assert_eq!(expected, parsed);
+        assert_str_eq!(input, parsed.to_string());
         assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn parse_column_definition_ast() {
+        let input_1 = "name VARCHAR";
+        let (_, column_def_1) = column_definition(input_1.as_ref()).unwrap();
+        let expected_1 = ColumnDefinition {
+            column_name: Ident::new(b"name"),
+            opt_data_type: Some(DataType::Varchar),
+        };
+        assert_eq!(column_def_1, expected_1);
+
+        let input_2 = "name";
+        let (_, column_def_2) = column_definition(input_2.as_ref()).unwrap();
+        let expected_2 = ColumnDefinition {
+            column_name: Ident::new(b"name"),
+            opt_data_type: None,
+        };
+        assert_eq!(column_def_2, expected_2);
+    }
+
+    #[test_case("name")]
+    #[test_case("name VARCHAR")]
+    fn parse_column_definition_serialisation(input: &str) {
+        assert_str_eq!(
+            input,
+            column_definition(input.as_ref()).unwrap().1.to_string()
+        );
     }
 }

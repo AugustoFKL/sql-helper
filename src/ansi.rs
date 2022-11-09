@@ -5,33 +5,6 @@ use crate::common::Ident;
 /// `ANSI` parser methods.
 pub mod parser;
 
-/// `ANSI` data types [(1)].
-///
-/// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#_6_1_data_type
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum DataType {
-    /// CHARACTER\[([<character_length>])].
-    ///
-    /// [<character_length>]: CharacterLength
-    Character,
-    /// CHAR\[([<character_length>])].
-    ///
-    /// [<character_length>]: CharacterLength
-    Char,
-    /// CHARACTER VARYING\[([<character_length>])].
-    ///
-    /// [<character_length>]: CharacterLength
-    CharacterVarying,
-    /// CHAR VARYING\[([<character_length>])].
-    ///
-    /// [<character_length>]: CharacterLength
-    CharVarying,
-    /// VARCHAR\[([<character_length>])].
-    ///
-    /// [<character_length>]: CharacterLength
-    Varchar,
-}
-
 /// `ANSI` statements [(1)].
 ///
 /// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#SQL-executable-statement
@@ -112,6 +85,47 @@ pub enum DropBehavior {
     Cascade,
     /// RESTRICT - the drop is restricted to the specific structure.
     Restrict,
+}
+
+/// Column definition for `ANSI` columns [(1)].
+///
+/// # Supported syntax
+/// `<column name> [<data type>]`
+///
+/// [1]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#column-definition
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct ColumnDefinition {
+    /// `<column name>`
+    column_name: Ident,
+    /// `[<data_type>]`
+    opt_data_type: Option<DataType>,
+}
+
+/// `ANSI` data types [(1)].
+///
+/// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#_6_1_data_type
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum DataType {
+    /// CHARACTER\[([<character_length>])].
+    ///
+    /// [<character_length>]: CharacterLength
+    Character,
+    /// CHAR\[([<character_length>])].
+    ///
+    /// [<character_length>]: CharacterLength
+    Char,
+    /// CHARACTER VARYING\[([<character_length>])].
+    ///
+    /// [<character_length>]: CharacterLength
+    CharacterVarying,
+    /// CHAR VARYING\[([<character_length>])].
+    ///
+    /// [<character_length>]: CharacterLength
+    CharVarying,
+    /// VARCHAR\[([<character_length>])].
+    ///
+    /// [<character_length>]: CharacterLength
+    Varchar,
 }
 
 impl fmt::Display for Statement {
@@ -249,6 +263,73 @@ impl fmt::Display for DropBehavior {
             }
             Self::Restrict => {
                 write!(f, "RESTRICT")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl ColumnDefinition {
+    /// Creates a new `ColumnDefinition`.
+    ///
+    /// The fields in the new statement are the obligatory fields. Optional
+    /// fields should be set via `with_...` methods.
+    #[must_use]
+    pub fn new(column_name: &Ident) -> Self {
+        Self {
+            column_name: column_name.clone(),
+            opt_data_type: None,
+        }
+    }
+
+    /// Sets the column data type.
+    pub fn with_data_type(&mut self, data_type: DataType) {
+        self.opt_data_type = Some(data_type);
+    }
+
+    /// Returns the column name identifier.
+    #[must_use]
+    pub fn column_name(&self) -> &Ident {
+        &self.column_name
+    }
+
+    /// Returns the column data type.
+    #[must_use]
+    pub fn opt_data_type(&self) -> Option<DataType> {
+        self.opt_data_type
+    }
+}
+
+impl fmt::Display for ColumnDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.column_name)?;
+
+        if let Some(data_type) = self.opt_data_type() {
+            write!(f, " {}", data_type)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for DataType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Character => {
+                write!(f, "CHARACTER")?;
+            }
+            Self::Char => {
+                write!(f, "CHAR")?;
+            }
+            Self::CharacterVarying => {
+                write!(f, "CHARACTER VARYING")?;
+            }
+            Self::CharVarying => {
+                write!(f, "CHAR VARYING")?;
+            }
+            Self::Varchar => {
+                write!(f, "VARCHAR")?;
             }
         }
 

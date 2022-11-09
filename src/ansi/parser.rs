@@ -21,7 +21,7 @@ use crate::common::parsers::{ident, parse_statement_terminator};
 /// [(1)]: crate::ansi::DataType
 #[allow(unused)]
 fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
-    alt((character_string,))(input)
+    alt((character_string, boolean_type))(input)
 }
 
 /// Parses `ANSI` character string data types.
@@ -53,6 +53,15 @@ fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
             |(_, opt_len)| DataType::Char(opt_len),
         ),
     ))(input)
+}
+
+/// Parses <boolean type>.
+///
+/// # Errors
+/// This function returns an error if the data type is malformed.
+#[allow(unused)]
+fn boolean_type(i: &[u8]) -> IResult<&[u8], DataType> {
+    map(tag_no_case("BOOLEAN"), |_| DataType::Boolean)(i)
 }
 
 /// Parses optional `CharacterLength` information.
@@ -259,121 +268,126 @@ mod tests {
 
     use super::*;
 
+    macro_rules! assert_expected_data_type {
+        ($input:expr, $expected:expr) => {{
+            let (remaining, parsed) = data_type($input.as_ref()).unwrap();
+            assert_eq!($expected, parsed);
+            assert_str_eq!($input, parsed.to_string());
+            assert!(remaining.is_empty());
+        }};
+    }
+
     #[test]
     fn parse_character_string() {
-        macro_rules! assert_expected {
-            ($input:expr, $expected:expr) => {{
-                let (remaining, parsed) = data_type($input.as_ref()).unwrap();
-                assert_eq!($expected, parsed);
-                assert_str_eq!($input, parsed.to_string());
-                assert!(remaining.is_empty());
-            }};
-        }
+        assert_expected_data_type!("CHARACTER VARYING", DataType::CharacterVarying(None));
 
-        assert_expected!("CHARACTER VARYING", DataType::CharacterVarying(None));
-
-        assert_expected!(
+        assert_expected_data_type!(
             "CHARACTER VARYING(20)",
             DataType::CharacterVarying(Some(*CharacterLength::new(20).with_units(None)))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHARACTER VARYING(20 OCTETS)",
             DataType::CharacterVarying(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
             ))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHARACTER VARYING(20 CHARACTERS)",
             DataType::CharacterVarying(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
             ))
         );
 
-        assert_expected!("CHAR VARYING", DataType::CharVarying(None));
+        assert_expected_data_type!("CHAR VARYING", DataType::CharVarying(None));
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHAR VARYING(20)",
             DataType::CharVarying(Some(*CharacterLength::new(20).with_units(None)))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHAR VARYING(20 OCTETS)",
             DataType::CharVarying(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
             ))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHAR VARYING(20 CHARACTERS)",
             DataType::CharVarying(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
             ))
         );
 
-        assert_expected!("CHARACTER", DataType::Character(None));
+        assert_expected_data_type!("CHARACTER", DataType::Character(None));
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHARACTER(20)",
             DataType::Character(Some(*CharacterLength::new(20).with_units(None)))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHARACTER(20 OCTETS)",
             DataType::Character(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
             ))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHARACTER(20 CHARACTERS)",
             DataType::Character(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
             ))
         );
 
-        assert_expected!("VARCHAR", DataType::Varchar(None));
+        assert_expected_data_type!("VARCHAR", DataType::Varchar(None));
 
-        assert_expected!(
+        assert_expected_data_type!(
             "VARCHAR(20)",
             DataType::Varchar(Some(*CharacterLength::new(20).with_units(None)))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "VARCHAR(20 OCTETS)",
             DataType::Varchar(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
             ))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "VARCHAR(20 CHARACTERS)",
             DataType::Varchar(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
             ))
         );
 
-        assert_expected!("CHAR", DataType::Char(None));
+        assert_expected_data_type!("CHAR", DataType::Char(None));
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHAR(20)",
             DataType::Char(Some(*CharacterLength::new(20).with_units(None)))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHAR(20 OCTETS)",
             DataType::Char(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
             ))
         );
 
-        assert_expected!(
+        assert_expected_data_type!(
             "CHAR(20 CHARACTERS)",
             DataType::Char(Some(
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
             ))
         );
+    }
+
+    #[test]
+    fn parse_boolean_type() {
+        assert_expected_data_type!("BOOLEAN", DataType::Boolean);
     }
 
     #[test]

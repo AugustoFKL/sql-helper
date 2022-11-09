@@ -126,6 +126,8 @@ pub enum DataType {
     ///
     /// [<character_length>]: CharacterLength
     Varchar(Option<CharacterLength>),
+    /// BOOLEAN
+    Boolean,
 }
 
 /// Character length of a string literal [(1)].
@@ -382,6 +384,9 @@ impl fmt::Display for DataType {
                 if let Some(len) = opt_len {
                     write!(f, "({len})")?;
                 }
+            }
+            DataType::Boolean => {
+                write!(f, "BOOLEAN")?;
             }
         }
 

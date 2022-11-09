@@ -12,6 +12,9 @@ fn parse_create_schema(input: &str) -> CreateSchema {
 
     match stmt {
         Statement::CreateSchema(create_schema) => create_schema,
+        _ => {
+            unreachable!()
+        }
     }
 }
 
@@ -31,20 +34,20 @@ fn test_create_schema_structure() {
         None,
         &Ident::new(b"schema_name"),
     )));
-    assert_eq!(expected_1, parsed_1, "{}", parsed_1.to_string());
+    assert_eq!(expected_1, parsed_1, "{}", parsed_1);
 
     let parsed_2 = parse_create_schema("CREATE SCHEMA catalog_name.schema_name;");
     let expected_2 = CreateSchema::new(SchemaNameClause::Simple(SchemaName::new(
         Some(&Ident::new(b"catalog_name")),
         &Ident::new(b"schema_name"),
     )));
-    assert_eq!(expected_2, parsed_2, "{}", parsed_2.to_string());
+    assert_eq!(expected_2, parsed_2, "{}", parsed_2);
 
     let parsed_3 = parse_create_schema("CREATE SCHEMA AUTHORIZATION authorization_name;");
     let expected_3 = CreateSchema::new(SchemaNameClause::Authorization(Ident::new(
         b"authorization_name",
     )));
-    assert_eq!(expected_3, parsed_3, "{}", parsed_3.to_string());
+    assert_eq!(expected_3, parsed_3, "{}", parsed_3);
 
     let parsed_4 =
         parse_create_schema("CREATE SCHEMA schema_name AUTHORIZATION authorization_name;");
@@ -52,7 +55,7 @@ fn test_create_schema_structure() {
         SchemaName::new(None, &Ident::new(b"schema_name")),
         Ident::new(b"authorization_name"),
     ));
-    assert_eq!(expected_4, parsed_4, "{}", parsed_4.to_string());
+    assert_eq!(expected_4, parsed_4, "{}", parsed_4);
 
     let parsed_5 = parse_create_schema(
         "CREATE SCHEMA catalog_name.schema_name AUTHORIZATION authorization_name;",
@@ -64,5 +67,5 @@ fn test_create_schema_structure() {
         ),
         Ident::new(b"authorization_name"),
     ));
-    assert_eq!(expected_5, parsed_5, "{}", parsed_5.to_string());
+    assert_eq!(expected_5, parsed_5, "{}", parsed_5);
 }

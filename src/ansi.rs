@@ -146,6 +146,8 @@ pub enum DataType {
     Real,
     /// `DOUBLE PRECISION`
     DoublePrecision,
+    /// `DECFLOAT[(<precision>)]`
+    DecFloat(Option<u32>),
     /// BOOLEAN
     Boolean,
     /// `DATE`
@@ -453,6 +455,13 @@ impl fmt::Display for DataType {
             }
             Self::Dec(exact_number_info) => {
                 write!(f, "DEC{exact_number_info}")?;
+            }
+            Self::DecFloat(opt_precision) => {
+                write!(f, "DECFLOAT")?;
+
+                if let Some(precision) = opt_precision {
+                    write!(f, "({precision})")?;
+                }
             }
             Self::Smallint => {
                 write!(f, "SMALLINT")?;

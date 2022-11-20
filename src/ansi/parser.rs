@@ -20,8 +20,10 @@ use crate::common::parsers::{delimited_u32, ident, parse_statement_terminator};
 ///
 /// [(1)]: crate::ansi::DataType
 fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
+    // OBS: the order matters to parse data types. Do not change it.
     alt((
         character_string,
+        decimal_floating_point_type,
         exact_numeric_type,
         approximate_numeric_type,
         boolean_type,
@@ -84,7 +86,7 @@ fn exact_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
     ))(i)
 }
 
-/// Parses `<Approximate numeric type>`.
+/// Parses `<approximate numeric type>`.
 ///
 /// # Errors
 /// This function returns an error if the data type is malformed.
@@ -96,6 +98,20 @@ fn approximate_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
             DataType::DoublePrecision
         }),
     ))(i)
+}
+
+/// Parses `<decimal floating-point type>`.
+///
+/// # Errors
+/// This function returns an error if the data type is malformed.
+fn decimal_floating_point_type(i: &[u8]) -> IResult<&[u8], DataType> {
+    map(
+        preceded(
+            tag_no_case("DECFLOAT"),
+            opt(preceded(multispace0, delimited_u32)),
+        ),
+        DataType::DecFloat,
+    )(i)
 }
 
 /// Parses both the precision and scale for a exact number, if present.
@@ -533,6 +549,12 @@ mod tests {
         assert_expected_data_type!("FLOAT", DataType::Float);
         assert_expected_data_type!("REAL", DataType::Real);
         assert_expected_data_type!("DOUBLE PRECISION", DataType::DoublePrecision);
+    }
+
+    #[test]
+    fn parse_decimal_floating_point_type() {
+        assert_expected_data_type!("DECFLOAT", DataType::DecFloat(None));
+        assert_expected_data_type!("DECFLOAT(120)", DataType::DecFloat(Some(120)));
     }
 
     #[test]

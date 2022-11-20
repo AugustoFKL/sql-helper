@@ -3,11 +3,7 @@ use std::fmt;
 use crate::ansi::data_type_structures::ast::DataType;
 use crate::common::Ident;
 
-/// `ANSI` [AST](https://en.wikipedia.org/wiki/Abstract_syntax_tree) structures
-pub mod ast;
-/// `ANSI` [DataType](DataType) parsers and structures.
 pub mod data_type_structures;
-/// `ANSI` parser methods.
 pub mod parser;
 
 /// `ANSI` statements [(1)].
@@ -120,16 +116,11 @@ impl fmt::Display for Statement {
 }
 
 impl CreateSchema {
-    /// Create a new `CreateSchema`.
-    ///
-    /// The fields in the new statement are the obligatory fields. Optional
-    /// fields should be set via `with_...` methods.
     #[must_use]
     pub fn new(schema_name_clause: SchemaNameClause) -> Self {
         Self { schema_name_clause }
     }
 
-    /// Returns a reference to the schema name clause.
     #[must_use]
     pub fn schema_name_clause(&self) -> &SchemaNameClause {
         &self.schema_name_clause
@@ -144,10 +135,6 @@ impl fmt::Display for CreateSchema {
 }
 
 impl DropSchema {
-    /// Create a new `DropSchema`.
-    ///
-    /// The fields in the new statement are the obligatory fields. Optional
-    /// fields should be set via `with_...` methods.
     #[must_use]
     pub fn new(schema_name: SchemaName, drop_behavior: DropBehavior) -> Self {
         Self {
@@ -156,13 +143,11 @@ impl DropSchema {
         }
     }
 
-    /// Returns a reference to the schema name.
     #[must_use]
     pub fn schema_name(&self) -> &SchemaName {
         &self.schema_name
     }
 
-    /// Returns the drop behavior.
     #[must_use]
     pub fn drop_behavior(&self) -> DropBehavior {
         self.drop_behavior
@@ -199,7 +184,6 @@ impl fmt::Display for SchemaNameClause {
 }
 
 impl SchemaName {
-    /// Creates a new schema name.
     #[must_use]
     pub fn new(opt_catalog_name: Option<&Ident>, name: &Ident) -> Self {
         Self {
@@ -208,13 +192,11 @@ impl SchemaName {
         }
     }
 
-    /// Returns a reference to the schema name identifier.
     #[must_use]
     pub fn name(&self) -> &Ident {
         &self.name
     }
 
-    /// Returns an optional reference to the schema catalog identifier.
     #[must_use]
     pub fn opt_catalog_name(&self) -> Option<&Ident> {
         self.opt_catalog_name.as_ref()
@@ -249,10 +231,6 @@ impl fmt::Display for DropBehavior {
 }
 
 impl ColumnDefinition {
-    /// Creates a new `ColumnDefinition`.
-    ///
-    /// The fields in the new statement are the obligatory fields. Optional
-    /// fields should be set via `with_...` methods.
     #[must_use]
     pub fn new(column_name: &Ident) -> Self {
         Self {
@@ -261,18 +239,15 @@ impl ColumnDefinition {
         }
     }
 
-    /// Sets the column data type.
     pub fn with_data_type(&mut self, data_type: DataType) {
         self.opt_data_type = Some(data_type);
     }
 
-    /// Returns the column name identifier.
     #[must_use]
     pub fn column_name(&self) -> &Ident {
         &self.column_name
     }
 
-    /// Returns the column data type.
     #[must_use]
     pub fn opt_data_type(&self) -> Option<DataType> {
         self.opt_data_type

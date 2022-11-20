@@ -2,8 +2,6 @@ use std::fmt;
 
 use nom::character::is_alphanumeric;
 
-/// Parsers functions for generic structures as `Ident`, and generic concepts,
-/// as the end of a statement.
 pub mod parsers;
 
 /// SQL identifiers [(1)].
@@ -27,13 +25,11 @@ pub enum QuoteStyle {
 }
 
 impl Ident {
-    /// Create a new identifier without a quote style.
     #[must_use]
     pub fn new(value: &[u8]) -> Self {
         Self::new_quoted(value, QuoteStyle::None)
     }
 
-    /// Create a new identifier with the given value and quote style.
     #[must_use]
     pub fn new_quoted(value: &[u8], quote_style: QuoteStyle) -> Self {
         Self {
@@ -42,13 +38,11 @@ impl Ident {
         }
     }
 
-    /// Returns the string stored inside the identifier.
     #[must_use]
     pub fn value(&self) -> &str {
         &self.value
     }
 
-    /// Returns the quote style value.
     #[must_use]
     pub fn quote_style(&self) -> &QuoteStyle {
         &self.quote_style
@@ -68,8 +62,6 @@ impl fmt::Display for Ident {
     }
 }
 
-/// Returns true if the given character is a valid identifier character.
-#[inline]
 #[must_use]
 pub fn is_sql_identifier(chr: u8) -> bool {
     is_alphanumeric(chr) || chr == b'_' || chr == b'@'

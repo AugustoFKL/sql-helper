@@ -126,6 +126,20 @@ pub enum DataType {
     ///
     /// [<character_length>]: CharacterLength
     Varchar(Option<CharacterLength>),
+    /// `NUMERIC[(<precision>, [<scale>])]`
+    Numeric(ExactNumberInfo),
+    /// `DECIMAL[(<precision>, [<scale>])]`
+    Decimal(ExactNumberInfo),
+    /// `DECIMAL[(<precision>, [<scale>])]`
+    Dec(ExactNumberInfo),
+    /// `SMALLINT`
+    Smallint,
+    /// `INTEGER`
+    Integer,
+    /// `INT`
+    Int,
+    /// `BIGINT`
+    Bigint,
     /// BOOLEAN
     Boolean,
     /// `DATE`
@@ -174,14 +188,32 @@ pub enum CharacterLengthUnits {
 /// ```doc
 /// [WITH TIME ZONE|WITHOUT TIME ZONE]
 /// ```
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub enum WithOrWithoutTimeZone {
     /// No time zone info was provided.
+    #[default]
     None,
     /// WITH TIME ZONE
     WithTimeZone,
     /// WITHOUT TIME ZONE
     WithoutTimeZone,
+}
+
+/// Timezone info for temporal types (`<with or without time zone>`).
+///
+/// # Supported syntax
+/// ```doc
+/// [WITH TIME ZONE|WITHOUT TIME ZONE]
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub enum ExactNumberInfo {
+    /// No info was provided.
+    #[default]
+    None,
+    /// (<precision>)
+    Precision(u32),
+    /// (<precision>, <scale>)
+    PrecisionAndScale(u32, u32),
 }
 
 impl fmt::Display for Statement {
@@ -407,13 +439,34 @@ impl fmt::Display for DataType {
                     write!(f, "({len})")?;
                 }
             }
-            DataType::Boolean => {
+            Self::Numeric(exact_number_info) => {
+                write!(f, "NUMERIC{exact_number_info}")?;
+            }
+            Self::Decimal(exact_number_info) => {
+                write!(f, "DECIMAL{exact_number_info}")?;
+            }
+            Self::Dec(exact_number_info) => {
+                write!(f, "DEC{exact_number_info}")?;
+            }
+            Self::Smallint => {
+                write!(f, "SMALLINT")?;
+            }
+            Self::Integer => {
+                write!(f, "INTEGER")?;
+            }
+            Self::Int => {
+                write!(f, "INT")?;
+            }
+            Self::Bigint => {
+                write!(f, "BIGINT")?;
+            }
+            Self::Boolean => {
                 write!(f, "BOOLEAN")?;
             }
-            DataType::Date => {
+            Self::Date => {
                 write!(f, "DATE")?;
             }
-            DataType::Time(opt_precision, tz_info) => {
+            Self::Time(opt_precision, tz_info) => {
                 write!(f, "TIME")?;
 
                 if let Some(precision) = opt_precision {
@@ -424,7 +477,7 @@ impl fmt::Display for DataType {
                     write!(f, " {tz_info}")?;
                 }
             }
-            DataType::Timestamp(opt_precision, tz_info) => {
+            Self::Timestamp(opt_precision, tz_info) => {
                 write!(f, "TIMESTAMP")?;
 
                 if let Some(precision) = opt_precision {
@@ -471,6 +524,7 @@ impl CharacterLength {
         self.opt_units
     }
 }
+
 impl fmt::Display for CharacterLength {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.length)?;
@@ -507,5 +561,21 @@ impl fmt::Display for WithOrWithoutTimeZone {
             }
         }
         Ok(())
+    }
+}
+
+impl fmt::Display for ExactNumberInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::None => {
+                write!(f, "")
+            }
+            Self::Precision(precision) => {
+                write!(f, "({precision})")
+            }
+            Self::PrecisionAndScale(precision, scale) => {
+                write!(f, "({precision}, {scale})")
+            }
+        }
     }
 }

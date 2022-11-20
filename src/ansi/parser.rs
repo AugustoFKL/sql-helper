@@ -8,7 +8,7 @@ use nom::IResult;
 
 use crate::ansi::{
     CharacterLength, CharacterLengthUnits, ColumnDefinition, CreateSchema, DataType, DropBehavior,
-    DropSchema, SchemaName, SchemaNameClause, Statement, WithOrWithoutTimeZone,
+    DropSchema, ExactNumberInfo, SchemaName, SchemaNameClause, Statement, WithOrWithoutTimeZone,
 };
 use crate::common::parsers::{delimited_u32, ident, parse_statement_terminator};
 
@@ -20,7 +20,12 @@ use crate::common::parsers::{delimited_u32, ident, parse_statement_terminator};
 ///
 /// [(1)]: crate::ansi::DataType
 fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
-    alt((character_string, boolean_type, datetime_type))(input)
+    alt((
+        character_string,
+        exact_numeric_type,
+        boolean_type,
+        datetime_type,
+    ))(input)
 }
 
 /// Parses `ANSI` character string data types.
@@ -51,6 +56,58 @@ fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
             |(_, opt_len)| DataType::Char(opt_len),
         ),
     ))(input)
+}
+
+/// Parses <exact numeric type>.
+///
+/// # Errors
+/// This function returns an error if the data type is malformed.
+fn exact_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
+    alt((
+        map(
+            preceded(tag_no_case("DECIMAL"), exact_number_info),
+            DataType::Decimal,
+        ),
+        map(
+            preceded(tag_no_case("NUMERIC"), exact_number_info),
+            DataType::Numeric,
+        ),
+        map(
+            preceded(tag_no_case("DEC"), exact_number_info),
+            DataType::Dec,
+        ),
+        map(tag_no_case("SMALLINT"), |_| DataType::Smallint),
+        map(tag_no_case("INTEGER"), |_| DataType::Integer),
+        map(tag_no_case("BIGINT"), |_| DataType::Bigint),
+        map(tag_no_case("INT"), |_| DataType::Int),
+    ))(i)
+}
+
+/// Parses both the precision and scale for a exact number, if present.
+///
+/// # Errors
+/// This function should not return an error, as if there's no present match, it
+/// will return the None variant of the structure.
+fn exact_number_info(i: &[u8]) -> IResult<&[u8], ExactNumberInfo> {
+    alt((
+        delimited(
+            tuple((multispace0, tag("("))),
+            map(
+                tuple((
+                    u32,
+                    preceded(tuple((multispace0, tag(","), multispace0)), u32),
+                )),
+                |(precision, scale)| ExactNumberInfo::PrecisionAndScale(precision, scale),
+            ),
+            tuple((multispace0, tag(")"))),
+        ),
+        delimited(
+            tuple((multispace0, tag("("))),
+            map(u32, ExactNumberInfo::Precision),
+            tuple((multispace0, tag(")"))),
+        ),
+        map(tag(""), |_| ExactNumberInfo::None),
+    ))(i)
 }
 
 /// Parses <boolean type>.
@@ -422,6 +479,38 @@ mod tests {
                 *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
             ))
         );
+    }
+
+    #[test]
+    fn parse_exact_numeric_type() {
+        assert_expected_data_type!("NUMERIC", DataType::Numeric(ExactNumberInfo::None));
+        assert_expected_data_type!(
+            "NUMERIC(20)",
+            DataType::Numeric(ExactNumberInfo::Precision(20))
+        );
+        assert_expected_data_type!(
+            "NUMERIC(30, 2)",
+            DataType::Numeric(ExactNumberInfo::PrecisionAndScale(30, 2))
+        );
+        assert_expected_data_type!("DECIMAL", DataType::Decimal(ExactNumberInfo::None));
+        assert_expected_data_type!(
+            "DECIMAL(20)",
+            DataType::Decimal(ExactNumberInfo::Precision(20))
+        );
+        assert_expected_data_type!(
+            "DECIMAL(30, 2)",
+            DataType::Decimal(ExactNumberInfo::PrecisionAndScale(30, 2))
+        );
+        assert_expected_data_type!("DEC", DataType::Dec(ExactNumberInfo::None));
+        assert_expected_data_type!("DEC(20)", DataType::Dec(ExactNumberInfo::Precision(20)));
+        assert_expected_data_type!(
+            "DEC(30, 2)",
+            DataType::Dec(ExactNumberInfo::PrecisionAndScale(30, 2))
+        );
+        assert_expected_data_type!("SMALLINT", DataType::Smallint);
+        assert_expected_data_type!("INTEGER", DataType::Integer);
+        assert_expected_data_type!("INT", DataType::Int);
+        assert_expected_data_type!("BIGINT", DataType::Bigint);
     }
 
     #[test]

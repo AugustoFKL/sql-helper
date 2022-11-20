@@ -32,24 +32,39 @@ pub fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
 fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         map(
-            tuple((tag_no_case("CHARACTER VARYING"), character_length)),
-            |(_, opt_len)| DataType::CharacterVarying(opt_len),
+            preceded(
+                tuple((tag_no_case("CHARACTER VARYING"), multispace0)),
+                opt_character_length,
+            ),
+            DataType::CharacterVarying,
         ),
         map(
-            tuple((tag_no_case("CHAR VARYING"), character_length)),
-            |(_, opt_len)| DataType::CharVarying(opt_len),
+            preceded(
+                tuple((tag_no_case("CHAR VARYING"), multispace0)),
+                opt_character_length,
+            ),
+            DataType::CharVarying,
         ),
         map(
-            tuple((tag_no_case("CHARACTER"), character_length)),
-            |(_, opt_len)| DataType::Character(opt_len),
+            preceded(
+                tuple((tag_no_case("CHARACTER"), multispace0)),
+                opt_character_length,
+            ),
+            DataType::Character,
         ),
         map(
-            tuple((tag_no_case("VARCHAR"), character_length)),
-            |(_, opt_len)| DataType::Varchar(opt_len),
+            preceded(
+                tuple((tag_no_case("VARCHAR"), multispace0)),
+                opt_character_length,
+            ),
+            DataType::Varchar,
         ),
         map(
-            tuple((tag_no_case("CHAR"), character_length)),
-            |(_, opt_len)| DataType::Char(opt_len),
+            preceded(
+                tuple((tag_no_case("CHAR"), multispace0)),
+                opt_character_length,
+            ),
+            DataType::Char,
         ),
     ))(input)
 }
@@ -119,33 +134,30 @@ fn datetime_type(i: &[u8]) -> IResult<&[u8], DataType> {
     ))(i)
 }
 
-fn character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
-    let characters_mapping = alt((
+fn opt_character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
+    let (i, opt_character_length) = opt(delimited(
+        tuple((tag_no_case("("), multispace0)),
+        tuple((u32, opt(preceded(multispace1, character_length_units)))),
+        tuple((multispace0, tag(")"))),
+    ))(i)?;
+
+    if let Some((length, opt_units)) = opt_character_length {
+        let mut character_length = CharacterLength::new(length);
+        if let Some(units) = opt_units {
+            character_length.with_units(units);
+        }
+        Ok((i, Some(character_length)))
+    } else {
+        Ok((i, None))
+    }
+}
+
+fn character_length_units(i: &[u8]) -> IResult<&[u8], CharacterLengthUnits> {
+    alt((
+        map(tag_no_case("OCTETS"), |_| CharacterLengthUnits::Octets),
         map(tag_no_case("CHARACTERS"), |_| {
             CharacterLengthUnits::Characters
         }),
-        map(tag_no_case("OCTETS"), |_| CharacterLengthUnits::Octets),
-    ));
-
-    let interior = map(
-        tuple((
-            u32,
-            opt(map(
-                tuple((multispace1, characters_mapping)),
-                |(_, units)| units,
-            )),
-        )),
-        |(length, opt_units)| {
-            let mut character_length = CharacterLength::new(length);
-            character_length.with_units(opt_units);
-            character_length
-        },
-    );
-
-    opt(delimited(
-        tuple((multispace0, tag("("))),
-        interior,
-        tuple((tag(")"), multispace0)),
     ))(i)
 }
 
@@ -206,20 +218,20 @@ mod tests {
 
         assert_expected_data_type!(
             "CHARACTER VARYING(20)",
-            DataType::CharacterVarying(Some(*CharacterLength::new(20).with_units(None)))
+            DataType::CharacterVarying(Some(CharacterLength::new(20)))
         );
 
         assert_expected_data_type!(
             "CHARACTER VARYING(20 OCTETS)",
             DataType::CharacterVarying(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "CHARACTER VARYING(20 CHARACTERS)",
             DataType::CharacterVarying(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
             ))
         );
 
@@ -227,20 +239,20 @@ mod tests {
 
         assert_expected_data_type!(
             "CHAR VARYING(20)",
-            DataType::CharVarying(Some(*CharacterLength::new(20).with_units(None)))
+            DataType::CharVarying(Some(CharacterLength::new(20)))
         );
 
         assert_expected_data_type!(
             "CHAR VARYING(20 OCTETS)",
             DataType::CharVarying(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "CHAR VARYING(20 CHARACTERS)",
             DataType::CharVarying(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
             ))
         );
 
@@ -248,20 +260,20 @@ mod tests {
 
         assert_expected_data_type!(
             "CHARACTER(20)",
-            DataType::Character(Some(*CharacterLength::new(20).with_units(None)))
+            DataType::Character(Some(CharacterLength::new(20)))
         );
 
         assert_expected_data_type!(
             "CHARACTER(20 OCTETS)",
             DataType::Character(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "CHARACTER(20 CHARACTERS)",
             DataType::Character(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
             ))
         );
 
@@ -269,41 +281,38 @@ mod tests {
 
         assert_expected_data_type!(
             "VARCHAR(20)",
-            DataType::Varchar(Some(*CharacterLength::new(20).with_units(None)))
+            DataType::Varchar(Some(CharacterLength::new(20)))
         );
 
         assert_expected_data_type!(
             "VARCHAR(20 OCTETS)",
             DataType::Varchar(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "VARCHAR(20 CHARACTERS)",
             DataType::Varchar(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
             ))
         );
 
         assert_expected_data_type!("CHAR", DataType::Char(None));
 
-        assert_expected_data_type!(
-            "CHAR(20)",
-            DataType::Char(Some(*CharacterLength::new(20).with_units(None)))
-        );
+        assert_expected_data_type!("CHAR(20)", DataType::Char(Some(CharacterLength::new(20))));
 
         assert_expected_data_type!(
             "CHAR(20 OCTETS)",
             DataType::Char(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Octets))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "CHAR(20 CHARACTERS)",
             DataType::Char(Some(
-                *CharacterLength::new(20).with_units(Some(CharacterLengthUnits::Characters))
+                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
             ))
         );
     }

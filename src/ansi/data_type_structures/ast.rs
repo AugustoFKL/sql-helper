@@ -242,8 +242,8 @@ impl CharacterLength {
         }
     }
 
-    pub fn with_units(&mut self, opt_units: Option<CharacterLengthUnits>) -> &mut Self {
-        self.opt_units = opt_units;
+    pub fn with_units(&mut self, units: CharacterLengthUnits) -> &mut Self {
+        self.opt_units = Some(units);
         self
     }
 

@@ -77,7 +77,8 @@ pub struct CharacterLength {
 ///
 /// # Supported syntax
 /// ```doc
-/// [CHARACTERS|OCTETS]
+/// CHARACTERS
+/// | OCTETS
 /// ```
 ///
 /// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#char-length-units
@@ -100,9 +101,9 @@ pub enum ExactNumberInfo {
     /// No info was provided.
     #[default]
     None,
-    /// (<precision>)
+    /// `(<precision>)`
     Precision(u32),
-    /// (<precision>, <scale>)
+    /// `(<precision>, <scale>)`
     PrecisionAndScale(u32, u32),
 }
 
@@ -233,9 +234,6 @@ impl fmt::Display for DataType {
 }
 
 impl CharacterLength {
-    /// Creates a new `CharacterLength`.
-    ///
-    /// Optional fields should be set via `with_...` methods.
     #[must_use]
     pub fn new(length: u32) -> Self {
         Self {
@@ -244,19 +242,16 @@ impl CharacterLength {
         }
     }
 
-    /// Sets the units attribute value.
     pub fn with_units(&mut self, opt_units: Option<CharacterLengthUnits>) -> &mut Self {
         self.opt_units = opt_units;
         self
     }
 
-    /// Returns the length attribute value.
     #[must_use]
     pub fn length(&self) -> u32 {
         self.length
     }
 
-    /// Returns the length attribute value.
     #[must_use]
     pub fn opt_units(&self) -> Option<CharacterLengthUnits> {
         self.opt_units

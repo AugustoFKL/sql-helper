@@ -27,13 +27,6 @@ pub fn parse_statement(i: &[u8]) -> IResult<&[u8], Statement> {
     ))(i)
 }
 
-/// Parses a `CREATE SCHEMA` [(1)] statement.
-///
-/// # Errors
-/// This method will raise an error if the input is malformed, or if the
-/// statement is not supported.
-///
-/// [(1)]: crate::ansi::CreateSchema
 fn create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
     let (remaining_input, (_, _, _, schema_name_clause, _)) = tuple((
         tag_no_case("CREATE"),
@@ -48,13 +41,6 @@ fn create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
     Ok((remaining_input, create_schema))
 }
 
-/// Parses a `DROP SCHEMA` [(1)] statement.
-///
-/// # Errors
-/// This method will raise an error if the input is malformed, or if the
-/// statement is not supported.
-///
-/// [(1)]: crate::ansi::DropSchema
 fn drop_schema(i: &[u8]) -> IResult<&[u8], DropSchema> {
     let (remaining_input, (_, _, _, _, schema_name, _, drop_behavior, _)) = tuple((
         tag_no_case("DROP"),
@@ -75,13 +61,6 @@ fn drop_schema(i: &[u8]) -> IResult<&[u8], DropSchema> {
     Ok((remaining_input, drop_schema))
 }
 
-/// Parses a `<schema name clause>` [(1)].
-///
-/// # Errors
-/// This method returns an error if the schema name is malformed or contains
-/// unsupported features.
-///
-/// [(1)]: SchemaNameClause
 fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
     let (remaining, (_, schema_name_clause)) = tuple((
         multispace0,
@@ -112,13 +91,6 @@ fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
     Ok((remaining, schema_name_clause))
 }
 
-/// Parses a `<schema name>` [(1)].
-///
-/// # Errors
-/// This function returns an error if the schema name or catalog name
-/// identifiers cannot be parsed or if it has more than one qualifier.
-///
-/// [(1)]: SchemaName
 fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
     let (i, idents) = separated_list1(tag("."), ident)(i)?;
 
@@ -136,15 +108,8 @@ fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
     Ok((i, schema_name))
 }
 
-/// Parses a `<column definition>` [(1)].
-///
-///
-/// # Errors
-/// This function will throw an error if the column definition is invalid or
-/// malformed. This includes unsupported features such as data types.
-///
-/// [(1)]: crate::ansi::ColumnDefinition
-pub fn column_definition(i: &[u8]) -> IResult<&[u8], ColumnDefinition> {
+#[allow(dead_code)]
+fn column_definition(i: &[u8]) -> IResult<&[u8], ColumnDefinition> {
     let (remaining, (column_name, _, opt_data_type)) =
         tuple((ident, multispace0, opt(data_type)))(i)?;
 
@@ -157,13 +122,6 @@ pub fn column_definition(i: &[u8]) -> IResult<&[u8], ColumnDefinition> {
     Ok((remaining, column_def))
 }
 
-/// Parses a `<drop behavior>` [(1)].
-///
-/// # Errors
-/// This function returns an error if the drop behavior is nor `RESTRICT` or
-/// `CASCADE`.
-///
-/// [(1)]: DropBehavior
 fn drop_behavior(i: &[u8]) -> IResult<&[u8], DropBehavior> {
     alt((
         map(tag_no_case("CASCADE"), |_| DropBehavior::Cascade),

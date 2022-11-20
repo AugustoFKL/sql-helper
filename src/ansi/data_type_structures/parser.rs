@@ -29,11 +29,6 @@ pub fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
     ))(input)
 }
 
-/// Parses `ANSI` character string data types.
-///
-/// # Errors
-/// This function returns an error if the data type is not supported or not
-/// exists in the current dialect.
 fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         map(
@@ -59,10 +54,6 @@ fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
     ))(input)
 }
 
-/// Parses `<exact numeric type>`.
-///
-/// # Errors
-/// This function returns an error if the data type is malformed.
 fn exact_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         map(
@@ -84,10 +75,6 @@ fn exact_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
     ))(i)
 }
 
-/// Parses `<approximate numeric type>`.
-///
-/// # Errors
-/// This function returns an error if the data type is malformed.
 fn approximate_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         map(tag_no_case("FLOAT"), |_| DataType::Float),
@@ -98,10 +85,6 @@ fn approximate_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
     ))(i)
 }
 
-/// Parses `<decimal floating-point type>`.
-///
-/// # Errors
-/// This function returns an error if the data type is malformed.
 fn decimal_floating_point_type(i: &[u8]) -> IResult<&[u8], DataType> {
     map(
         preceded(
@@ -112,18 +95,10 @@ fn decimal_floating_point_type(i: &[u8]) -> IResult<&[u8], DataType> {
     )(i)
 }
 
-/// Parses <boolean type>.
-///
-/// # Errors
-/// This function returns an error if the data type is malformed.
 fn boolean_type(i: &[u8]) -> IResult<&[u8], DataType> {
     map(tag_no_case("BOOLEAN"), |_| DataType::Boolean)(i)
 }
 
-/// Parses `<datetime type>`.
-///
-/// # Errors
-/// This function returns an error if the data type is malformed.
 fn datetime_type(i: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         map(tag_no_case("DATE"), |_| DataType::Date),
@@ -144,13 +119,6 @@ fn datetime_type(i: &[u8]) -> IResult<&[u8], DataType> {
     ))(i)
 }
 
-/// Parses optional `CharacterLength` information.
-///
-/// # Errors
-/// This function will throw an error if the input string is malformed, invalid
-/// or empty. As the implementation is complete, there's no possible
-/// unimplemented error scenarios.
-/// ```
 fn character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
     let characters_mapping = alt((
         map(tag_no_case("CHARACTERS"), |_| {
@@ -181,11 +149,6 @@ fn character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
     ))(i)
 }
 
-/// Parses both the precision and scale for a exact number, if present.
-///
-/// # Errors
-/// This function should not return an error, as if there's no present match, it
-/// will return the None variant of the structure.
 fn exact_number_info(i: &[u8]) -> IResult<&[u8], ExactNumberInfo> {
     alt((
         delimited(
@@ -208,10 +171,6 @@ fn exact_number_info(i: &[u8]) -> IResult<&[u8], ExactNumberInfo> {
     ))(i)
 }
 
-/// Parses `<with or without timezone>`.
-///
-/// # Errors
-/// This function shouldn't fail.
 fn with_or_without_timezone(i: &[u8]) -> IResult<&[u8], WithOrWithoutTimeZone> {
     alt((
         map(

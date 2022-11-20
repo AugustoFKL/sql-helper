@@ -1,4 +1,4 @@
-#![warn(clippy::all, clippy::pedantic, clippy::missing_docs_in_private_items)]
+#![warn(clippy::pedantic)]
 //! This crate implements a high level abstraction of the sqlparser library: <https://github.com/sqlparser-rs/sqlparser-rs>.
 //!
 //! For each dialect there's a corresponding implementation for all the AST,
@@ -7,14 +7,5 @@
 //! dialect-specific implementations, instead of using the way too genetic
 //! implementation from the parser library.
 
-extern crate core;
-
-/// AST structures and functions for `ANSI` data type.
-///
-/// Based on documentation from ANSI standard 2016 [(1)].
-///
-/// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html
 pub mod ansi;
-
-/// AST structures and functions generic types.
 pub mod common;

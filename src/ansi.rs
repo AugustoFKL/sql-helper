@@ -140,6 +140,12 @@ pub enum DataType {
     Int,
     /// `BIGINT`
     Bigint,
+    /// `FLOAT`
+    Float,
+    /// `REAL`
+    Real,
+    /// `DOUBLE PRECISION`
+    DoublePrecision,
     /// BOOLEAN
     Boolean,
     /// `DATE`
@@ -459,6 +465,15 @@ impl fmt::Display for DataType {
             }
             Self::Bigint => {
                 write!(f, "BIGINT")?;
+            }
+            Self::Float => {
+                write!(f, "FLOAT")?;
+            }
+            Self::Real => {
+                write!(f, "REAL")?;
+            }
+            Self::DoublePrecision => {
+                write!(f, "DOUBLE PRECISION")?;
             }
             Self::Boolean => {
                 write!(f, "BOOLEAN")?;

@@ -23,6 +23,7 @@ fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         character_string,
         exact_numeric_type,
+        approximate_numeric_type,
         boolean_type,
         datetime_type,
     ))(input)
@@ -58,7 +59,7 @@ fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
     ))(input)
 }
 
-/// Parses <exact numeric type>.
+/// Parses `<exact numeric type>`.
 ///
 /// # Errors
 /// This function returns an error if the data type is malformed.
@@ -80,6 +81,20 @@ fn exact_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
         map(tag_no_case("INTEGER"), |_| DataType::Integer),
         map(tag_no_case("BIGINT"), |_| DataType::Bigint),
         map(tag_no_case("INT"), |_| DataType::Int),
+    ))(i)
+}
+
+/// Parses `<Approximate numeric type>`.
+///
+/// # Errors
+/// This function returns an error if the data type is malformed.
+fn approximate_numeric_type(i: &[u8]) -> IResult<&[u8], DataType> {
+    alt((
+        map(tag_no_case("FLOAT"), |_| DataType::Float),
+        map(tag_no_case("REAL"), |_| DataType::Real),
+        map(tag_no_case("DOUBLE PRECISION"), |_| {
+            DataType::DoublePrecision
+        }),
     ))(i)
 }
 
@@ -511,6 +526,13 @@ mod tests {
         assert_expected_data_type!("INTEGER", DataType::Integer);
         assert_expected_data_type!("INT", DataType::Int);
         assert_expected_data_type!("BIGINT", DataType::Bigint);
+    }
+
+    #[test]
+    fn parse_approximate_numeric_type() {
+        assert_expected_data_type!("FLOAT", DataType::Float);
+        assert_expected_data_type!("REAL", DataType::Real);
+        assert_expected_data_type!("DOUBLE PRECISION", DataType::DoublePrecision);
     }
 
     #[test]

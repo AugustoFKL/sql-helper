@@ -1,9 +1,9 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
-use nom::character::complete::multispace0;
+use nom::character::complete::multispace1;
 use nom::combinator::{map, opt};
 use nom::multi::separated_list1;
-use nom::sequence::tuple;
+use nom::sequence::{delimited, preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::data_type_structures::parser::data_type;
@@ -28,65 +28,62 @@ pub fn parse_statement(i: &[u8]) -> IResult<&[u8], Statement> {
 }
 
 fn create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
-    let (remaining_input, (_, _, _, schema_name_clause, _)) = tuple((
-        tag_no_case("CREATE"),
-        multispace0,
-        tag_no_case("SCHEMA"),
+    let (i, schema_name_clause) = delimited(
+        tuple((
+            tag_no_case("CREATE"),
+            multispace1,
+            tag_no_case("SCHEMA"),
+            multispace1,
+        )),
         schema_name_clause,
         parse_statement_terminator,
-    ))(i)?;
+    )(i)?;
 
     let create_schema = CreateSchema { schema_name_clause };
 
-    Ok((remaining_input, create_schema))
+    Ok((i, create_schema))
 }
 
 fn drop_schema(i: &[u8]) -> IResult<&[u8], DropSchema> {
-    let (remaining_input, (_, _, _, _, schema_name, _, drop_behavior, _)) = tuple((
-        tag_no_case("DROP"),
-        multispace0,
-        tag_no_case("SCHEMA"),
-        multispace0,
-        schema_name,
-        multispace0,
-        drop_behavior,
+    let (i, (schema_name, drop_behavior)) = delimited(
+        tuple((
+            tag_no_case("DROP"),
+            multispace1,
+            tag_no_case("SCHEMA"),
+            multispace1,
+        )),
+        tuple((terminated(schema_name, multispace1), drop_behavior)),
         parse_statement_terminator,
-    ))(i)?;
+    )(i)?;
 
     let drop_schema = DropSchema {
         schema_name,
         drop_behavior,
     };
 
-    Ok((remaining_input, drop_schema))
+    Ok((i, drop_schema))
 }
 
 fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
-    let (remaining, (_, schema_name_clause)) = tuple((
-        multispace0,
-        (alt((
-            map(
-                tuple((
+    let (remaining, (schema_name_clause,)) = tuple((alt((
+        map(
+            tuple((
+                terminated(
                     schema_name,
-                    multispace0,
-                    tag_no_case("AUTHORIZATION"),
-                    multispace0,
-                    ident,
-                    multispace0,
-                )),
-                |(schema_name, _, _, _, authorization_name, _)| {
-                    SchemaNameClause::NamedAuthorization(schema_name, authorization_name)
-                },
-            ),
-            map(
-                tuple((tag_no_case("AUTHORIZATION"), multispace0, ident)),
-                |(_, _, authorization_name)| SchemaNameClause::Authorization(authorization_name),
-            ),
-            map(schema_name, |schema_name| {
-                SchemaNameClause::Simple(schema_name)
-            }),
-        ))),
-    ))(i)?;
+                    tuple((multispace1, tag_no_case("AUTHORIZATION"), multispace1)),
+                ),
+                ident,
+            )),
+            |(schema_name, authorization_name)| {
+                SchemaNameClause::NamedAuthorization(schema_name, authorization_name)
+            },
+        ),
+        map(
+            preceded(tuple((tag_no_case("AUTHORIZATION"), multispace1)), ident),
+            SchemaNameClause::Authorization,
+        ),
+        map(schema_name, SchemaNameClause::Simple),
+    )),))(i)?;
 
     Ok((remaining, schema_name_clause))
 }
@@ -110,8 +107,8 @@ fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
 
 #[allow(dead_code)]
 fn column_definition(i: &[u8]) -> IResult<&[u8], ColumnDefinition> {
-    let (remaining, (column_name, _, opt_data_type)) =
-        tuple((ident, multispace0, opt(data_type)))(i)?;
+    let (i, (column_name, opt_data_type)) =
+        tuple((ident, opt(preceded(multispace1, data_type))))(i)?;
 
     let mut column_def = ColumnDefinition::new(&column_name);
 
@@ -119,7 +116,7 @@ fn column_definition(i: &[u8]) -> IResult<&[u8], ColumnDefinition> {
         column_def.with_data_type(data_type);
     }
 
-    Ok((remaining, column_def))
+    Ok((i, column_def))
 }
 
 fn drop_behavior(i: &[u8]) -> IResult<&[u8], DropBehavior> {

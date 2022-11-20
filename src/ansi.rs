@@ -128,6 +128,12 @@ pub enum DataType {
     Varchar(Option<CharacterLength>),
     /// BOOLEAN
     Boolean,
+    /// `DATE`
+    Date,
+    /// `TIME [(<temporal precision>)] [<with or without time zone>]`
+    Time(Option<u32>, WithOrWithoutTimeZone),
+    /// `TIMESTAMP [(<temporal precision>)] [<with or without time zone>]`
+    Timestamp(Option<u32>, WithOrWithoutTimeZone),
 }
 
 /// Character length of a string literal [(1)].
@@ -160,6 +166,22 @@ pub enum CharacterLengthUnits {
     Characters,
     /// `OCTETS`
     Octets,
+}
+
+/// Timezone info for temporal types (`<with or without time zone>`).
+///
+/// # Supported syntax
+/// ```doc
+/// [WITH TIME ZONE|WITHOUT TIME ZONE]
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum WithOrWithoutTimeZone {
+    /// No time zone info was provided.
+    None,
+    /// WITH TIME ZONE
+    WithTimeZone,
+    /// WITHOUT TIME ZONE
+    WithoutTimeZone,
 }
 
 impl fmt::Display for Statement {
@@ -388,6 +410,31 @@ impl fmt::Display for DataType {
             DataType::Boolean => {
                 write!(f, "BOOLEAN")?;
             }
+            DataType::Date => {
+                write!(f, "DATE")?;
+            }
+            DataType::Time(opt_precision, tz_info) => {
+                write!(f, "TIME")?;
+
+                if let Some(precision) = opt_precision {
+                    write!(f, "({precision})")?;
+                }
+
+                if !matches!(tz_info, WithOrWithoutTimeZone::None) {
+                    write!(f, " {tz_info}")?;
+                }
+            }
+            DataType::Timestamp(opt_precision, tz_info) => {
+                write!(f, "TIMESTAMP")?;
+
+                if let Some(precision) = opt_precision {
+                    write!(f, "({precision})")?;
+                }
+
+                if !matches!(tz_info, WithOrWithoutTimeZone::None) {
+                    write!(f, " {tz_info}")?;
+                }
+            }
         }
 
         Ok(())
@@ -441,6 +488,23 @@ impl fmt::Display for CharacterLengthUnits {
         match self {
             Self::Characters => write!(f, "CHARACTERS")?,
             Self::Octets => write!(f, "OCTETS")?,
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for WithOrWithoutTimeZone {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::None => {
+                write!(f, "")?;
+            }
+            Self::WithTimeZone => {
+                write!(f, "WITH TIME ZONE")?;
+            }
+            Self::WithoutTimeZone => {
+                write!(f, "WITHOUT TIME ZONE")?;
+            }
         }
         Ok(())
     }

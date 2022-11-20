@@ -3,14 +3,14 @@ use nom::bytes::complete::{tag, tag_no_case};
 use nom::character::complete::{multispace0, multispace1, u32};
 use nom::combinator::{map, opt};
 use nom::multi::separated_list1;
-use nom::sequence::{delimited, tuple};
+use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 
 use crate::ansi::{
     CharacterLength, CharacterLengthUnits, ColumnDefinition, CreateSchema, DataType, DropBehavior,
-    DropSchema, SchemaName, SchemaNameClause, Statement,
+    DropSchema, SchemaName, SchemaNameClause, Statement, WithOrWithoutTimeZone,
 };
-use crate::common::parsers::{ident, parse_statement_terminator};
+use crate::common::parsers::{delimited_u32, ident, parse_statement_terminator};
 
 /// Parses `ANSI` data type [(1)].
 ///
@@ -19,9 +19,8 @@ use crate::common::parsers::{ident, parse_statement_terminator};
 /// exists in the current dialect.
 ///
 /// [(1)]: crate::ansi::DataType
-#[allow(unused)]
 fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
-    alt((character_string, boolean_type))(input)
+    alt((character_string, boolean_type, datetime_type))(input)
 }
 
 /// Parses `ANSI` character string data types.
@@ -29,7 +28,6 @@ fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
 /// # Errors
 /// This function returns an error if the data type is not supported or not
 /// exists in the current dialect.
-#[allow(unused)]
 fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         map(
@@ -59,9 +57,50 @@ fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
 ///
 /// # Errors
 /// This function returns an error if the data type is malformed.
-#[allow(unused)]
 fn boolean_type(i: &[u8]) -> IResult<&[u8], DataType> {
     map(tag_no_case("BOOLEAN"), |_| DataType::Boolean)(i)
+}
+
+/// Parses `<datetime type>`.
+///
+/// # Errors
+/// This function returns an error if the data type is malformed.
+fn datetime_type(i: &[u8]) -> IResult<&[u8], DataType> {
+    alt((
+        map(tag_no_case("DATE"), |_| DataType::Date),
+        map(
+            preceded(
+                tag_no_case("TIMESTAMP"),
+                tuple((opt(delimited_u32), with_or_without_timezone)),
+            ),
+            |(precision, tz_info)| DataType::Timestamp(precision, tz_info),
+        ),
+        map(
+            preceded(
+                tag_no_case("TIME"),
+                tuple((opt(delimited_u32), with_or_without_timezone)),
+            ),
+            |(precision, tz_info)| DataType::Time(precision, tz_info),
+        ),
+    ))(i)
+}
+
+/// Parses `<with or without timezone>`.
+///
+/// # Errors
+/// This function shouldn't fail.
+#[allow(unused)]
+fn with_or_without_timezone(i: &[u8]) -> IResult<&[u8], WithOrWithoutTimeZone> {
+    alt((
+        map(
+            tuple((multispace1, tag_no_case("WITHOUT TIME ZONE"))),
+            |_| WithOrWithoutTimeZone::WithoutTimeZone,
+        ),
+        map(tuple((multispace1, tag_no_case("WITH TIME ZONE"))), |_| {
+            WithOrWithoutTimeZone::WithTimeZone
+        }),
+        map(tag(""), |_| WithOrWithoutTimeZone::None),
+    ))(i)
 }
 
 /// Parses optional `CharacterLength` information.
@@ -388,6 +427,68 @@ mod tests {
     #[test]
     fn parse_boolean_type() {
         assert_expected_data_type!("BOOLEAN", DataType::Boolean);
+    }
+
+    #[test]
+    fn parse_datetime() {
+        assert_expected_data_type!("DATE", DataType::Date);
+
+        assert_expected_data_type!("TIME", DataType::Time(None, WithOrWithoutTimeZone::None));
+
+        assert_expected_data_type!(
+            "TIME WITH TIME ZONE",
+            DataType::Time(None, WithOrWithoutTimeZone::WithTimeZone)
+        );
+
+        assert_expected_data_type!(
+            "TIME WITHOUT TIME ZONE",
+            DataType::Time(None, WithOrWithoutTimeZone::WithoutTimeZone)
+        );
+
+        assert_expected_data_type!(
+            "TIME(20)",
+            DataType::Time(Some(20), WithOrWithoutTimeZone::None)
+        );
+
+        assert_expected_data_type!(
+            "TIME(20) WITH TIME ZONE",
+            DataType::Time(Some(20), WithOrWithoutTimeZone::WithTimeZone)
+        );
+
+        assert_expected_data_type!(
+            "TIME(20) WITHOUT TIME ZONE",
+            DataType::Time(Some(20), WithOrWithoutTimeZone::WithoutTimeZone)
+        );
+
+        assert_expected_data_type!(
+            "TIMESTAMP",
+            DataType::Timestamp(None, WithOrWithoutTimeZone::None)
+        );
+
+        assert_expected_data_type!(
+            "TIMESTAMP WITH TIME ZONE",
+            DataType::Timestamp(None, WithOrWithoutTimeZone::WithTimeZone)
+        );
+
+        assert_expected_data_type!(
+            "TIMESTAMP",
+            DataType::Timestamp(None, WithOrWithoutTimeZone::None)
+        );
+
+        assert_expected_data_type!(
+            "TIMESTAMP(20)",
+            DataType::Timestamp(Some(20), WithOrWithoutTimeZone::None)
+        );
+
+        assert_expected_data_type!(
+            "TIMESTAMP(20) WITH TIME ZONE",
+            DataType::Timestamp(Some(20), WithOrWithoutTimeZone::WithTimeZone)
+        );
+
+        assert_expected_data_type!(
+            "TIMESTAMP(20) WITHOUT TIME ZONE",
+            DataType::Timestamp(Some(20), WithOrWithoutTimeZone::WithoutTimeZone)
+        );
     }
 
     #[test]

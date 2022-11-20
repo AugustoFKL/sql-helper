@@ -1,8 +1,9 @@
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{tag, take_while1};
+use nom::character::complete;
 use nom::character::complete::{alpha1, line_ending, multispace0};
 use nom::combinator::{eof, map, peek};
-use nom::sequence::delimited;
+use nom::sequence::{delimited, tuple};
 use nom::IResult;
 
 use crate::common::{is_sql_identifier, Ident, QuoteStyle};
@@ -49,4 +50,17 @@ pub fn ident(i: &[u8]) -> IResult<&[u8], Ident> {
     );
 
     alt((double_quoted_parse, unquoted))(i)
+}
+
+/// Parses a u32 that is delimited by parentheses with one or more spaces in
+/// both sides.
+///
+/// # Errors
+/// If the parser fails, will return an error.
+pub fn delimited_u32(i: &[u8]) -> IResult<&[u8], u32> {
+    delimited(
+        tuple((tag("("), multispace0)),
+        complete::u32,
+        tuple((multispace0, tag(")"))),
+    )(i)
 }

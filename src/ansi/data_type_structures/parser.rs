@@ -6,7 +6,8 @@ use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 
 use crate::ansi::data_type_structures::ast::{
-    CharacterLength, CharacterLengthUnits, DataType, ExactNumberInfo, WithOrWithoutTimeZone,
+    CharLengthUnits, CharacterLargeObjectLength, CharacterLength, DataType, ExactNumberInfo,
+    LargeObjectLength, Multiplier, WithOrWithoutTimeZone,
 };
 use crate::common::parsers::delimited_u32;
 
@@ -20,6 +21,7 @@ use crate::common::parsers::delimited_u32;
 pub fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
     // OBS: the order matters to parse data types. Do not change it.
     alt((
+        character_large_object_types,
         character_string,
         decimal_floating_point_type,
         exact_numeric_type,
@@ -65,6 +67,44 @@ fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
                 opt_character_length,
             ),
             DataType::Char,
+        ),
+    ))(input)
+}
+
+fn character_large_object_types(input: &[u8]) -> IResult<&[u8], DataType> {
+    alt((
+        map(
+            preceded(
+                tag_no_case("CHARACTER LARGE OBJECT"),
+                opt(delimited(
+                    tuple((multispace0, tag("("), multispace0)),
+                    character_large_object_length,
+                    tuple((multispace0, tag(")"))),
+                )),
+            ),
+            DataType::CharacterLargeObject,
+        ),
+        map(
+            preceded(
+                tag_no_case("CHAR LARGE OBJECT"),
+                opt(delimited(
+                    tuple((multispace0, tag("("), multispace0)),
+                    character_large_object_length,
+                    tuple((multispace0, tag(")"))),
+                )),
+            ),
+            DataType::CharLargeObject,
+        ),
+        map(
+            preceded(
+                tag_no_case("CLOB"),
+                opt(delimited(
+                    tuple((multispace0, tag("("), multispace0)),
+                    character_large_object_length,
+                    tuple((multispace0, tag(")"))),
+                )),
+            ),
+            DataType::Clob,
         ),
     ))(input)
 }
@@ -137,7 +177,7 @@ fn datetime_type(i: &[u8]) -> IResult<&[u8], DataType> {
 fn opt_character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
     let (i, opt_character_length) = opt(delimited(
         tuple((tag_no_case("("), multispace0)),
-        tuple((u32, opt(preceded(multispace1, character_length_units)))),
+        tuple((u32, opt(preceded(multispace1, char_length_units)))),
         tuple((multispace0, tag(")"))),
     ))(i)?;
 
@@ -152,12 +192,45 @@ fn opt_character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
     }
 }
 
-fn character_length_units(i: &[u8]) -> IResult<&[u8], CharacterLengthUnits> {
+fn character_large_object_length(i: &[u8]) -> IResult<&[u8], CharacterLargeObjectLength> {
+    let (i, (length, opt_units)) = tuple((
+        large_object_length,
+        opt(preceded(multispace1, char_length_units)),
+    ))(i)?;
+
+    let mut character_length = CharacterLargeObjectLength::new(length);
+    if let Some(units) = opt_units {
+        character_length.with_units(units);
+    }
+
+    Ok((i, character_length))
+}
+
+fn large_object_length(i: &[u8]) -> IResult<&[u8], LargeObjectLength> {
+    let (i, (length, opt_multiplier)) = tuple((u32, opt(preceded(multispace0, multiplier))))(i)?;
+
+    let mut large_object_length = LargeObjectLength::new(length);
+    if let Some(multiplier) = opt_multiplier {
+        large_object_length.with_multiplier(multiplier);
+    }
+
+    Ok((i, large_object_length))
+}
+
+fn multiplier(i: &[u8]) -> IResult<&[u8], Multiplier> {
     alt((
-        map(tag_no_case("OCTETS"), |_| CharacterLengthUnits::Octets),
-        map(tag_no_case("CHARACTERS"), |_| {
-            CharacterLengthUnits::Characters
-        }),
+        map(tag_no_case("K"), |_| Multiplier::K),
+        map(tag_no_case("M"), |_| Multiplier::M),
+        map(tag_no_case("G"), |_| Multiplier::G),
+        map(tag_no_case("T"), |_| Multiplier::T),
+        map(tag_no_case("P"), |_| Multiplier::P),
+    ))(i)
+}
+
+fn char_length_units(i: &[u8]) -> IResult<&[u8], CharLengthUnits> {
+    alt((
+        map(tag_no_case("OCTETS"), |_| CharLengthUnits::Octets),
+        map(tag_no_case("CHARACTERS"), |_| CharLengthUnits::Characters),
     ))(i)
 }
 
@@ -224,14 +297,14 @@ mod tests {
         assert_expected_data_type!(
             "CHARACTER VARYING(20 OCTETS)",
             DataType::CharacterVarying(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "CHARACTER VARYING(20 CHARACTERS)",
             DataType::CharacterVarying(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
             ))
         );
 
@@ -245,14 +318,14 @@ mod tests {
         assert_expected_data_type!(
             "CHAR VARYING(20 OCTETS)",
             DataType::CharVarying(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "CHAR VARYING(20 CHARACTERS)",
             DataType::CharVarying(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
             ))
         );
 
@@ -266,14 +339,14 @@ mod tests {
         assert_expected_data_type!(
             "CHARACTER(20 OCTETS)",
             DataType::Character(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "CHARACTER(20 CHARACTERS)",
             DataType::Character(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
             ))
         );
 
@@ -287,14 +360,14 @@ mod tests {
         assert_expected_data_type!(
             "VARCHAR(20 OCTETS)",
             DataType::Varchar(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "VARCHAR(20 CHARACTERS)",
             DataType::Varchar(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
             ))
         );
 
@@ -305,14 +378,164 @@ mod tests {
         assert_expected_data_type!(
             "CHAR(20 OCTETS)",
             DataType::Char(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Octets)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Octets)
             ))
         );
 
         assert_expected_data_type!(
             "CHAR(20 CHARACTERS)",
             DataType::Char(Some(
-                *CharacterLength::new(20).with_units(CharacterLengthUnits::Characters)
+                *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_character_large_object_types_character_large_object() {
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT",
+            DataType::CharacterLargeObject(None)
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20)",
+            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
+                LargeObjectLength::new(20)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20 CHARACTERS)",
+            DataType::CharacterLargeObject(Some(
+                *CharacterLargeObjectLength::new(LargeObjectLength::new(20))
+                    .with_units(CharLengthUnits::Characters)
+            ))
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20 OCTETS)",
+            DataType::CharacterLargeObject(Some(
+                *CharacterLargeObjectLength::new(LargeObjectLength::new(20))
+                    .with_units(CharLengthUnits::Octets)
+            ))
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20K)",
+            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20K CHARACTERS)",
+            DataType::CharacterLargeObject(Some(
+                *CharacterLargeObjectLength::new(
+                    *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
+                )
+                .with_units(CharLengthUnits::Characters)
+            ))
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20M)",
+            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::M)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20G)",
+            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::G)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20T)",
+            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::T)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CHARACTER LARGE OBJECT(20P)",
+            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::P)
+            )))
+        );
+    }
+
+    #[test]
+    fn parse_character_large_object_types_char_large_object() {
+        assert_expected_data_type!("CHAR LARGE OBJECT", DataType::CharLargeObject(None));
+
+        assert_expected_data_type!(
+            "CHAR LARGE OBJECT(20)",
+            DataType::CharLargeObject(Some(CharacterLargeObjectLength::new(
+                LargeObjectLength::new(20)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CHAR LARGE OBJECT(20 CHARACTERS)",
+            DataType::CharLargeObject(Some(
+                *CharacterLargeObjectLength::new(LargeObjectLength::new(20))
+                    .with_units(CharLengthUnits::Characters)
+            ))
+        );
+
+        assert_expected_data_type!(
+            "CHAR LARGE OBJECT(20K)",
+            DataType::CharLargeObject(Some(CharacterLargeObjectLength::new(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CHAR LARGE OBJECT(20K CHARACTERS)",
+            DataType::CharLargeObject(Some(
+                *CharacterLargeObjectLength::new(
+                    *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
+                )
+                .with_units(CharLengthUnits::Characters)
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_character_large_object_types_clob() {
+        assert_expected_data_type!("CLOB", DataType::Clob(None));
+
+        assert_expected_data_type!(
+            "CLOB(20)",
+            DataType::Clob(Some(CharacterLargeObjectLength::new(
+                LargeObjectLength::new(20)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CLOB(20 CHARACTERS)",
+            DataType::Clob(Some(
+                *CharacterLargeObjectLength::new(LargeObjectLength::new(20))
+                    .with_units(CharLengthUnits::Characters)
+            ))
+        );
+
+        assert_expected_data_type!(
+            "CLOB(20K)",
+            DataType::Clob(Some(CharacterLargeObjectLength::new(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
+            )))
+        );
+
+        assert_expected_data_type!(
+            "CLOB(20K CHARACTERS)",
+            DataType::Clob(Some(
+                *CharacterLargeObjectLength::new(
+                    *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
+                )
+                .with_units(CharLengthUnits::Characters)
             ))
         );
     }

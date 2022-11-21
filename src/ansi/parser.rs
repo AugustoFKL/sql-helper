@@ -1,15 +1,14 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::character::complete::multispace1;
-use nom::combinator::{map, opt};
-use nom::multi::separated_list1;
+use nom::combinator::{map, opt, peek};
 use nom::sequence::{delimited, preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::data_type_structures::parser::data_type;
 use crate::ansi::{
-    ColumnDefinition, CreateSchema, DropBehavior, DropSchema, SchemaName, SchemaNameClause,
-    Statement,
+    ColumnDefinition, CreateSchema, DropBehavior, DropSchema, DropTable, LocalOrSchemaQualifier,
+    LocalQualifier, SchemaName, SchemaNameClause, Statement, TableName,
 };
 use crate::common::parsers::{ident, parse_statement_terminator};
 
@@ -24,6 +23,7 @@ pub fn parse_statement(i: &[u8]) -> IResult<&[u8], Statement> {
     alt((
         map(create_schema, Statement::CreateSchema),
         map(drop_schema, Statement::DropSchema),
+        map(drop_table, Statement::DropTable),
     ))(i)
 }
 
@@ -64,6 +64,49 @@ fn drop_schema(i: &[u8]) -> IResult<&[u8], DropSchema> {
     Ok((i, drop_schema))
 }
 
+fn drop_table(i: &[u8]) -> IResult<&[u8], DropTable> {
+    let (i, (table_name, drop_behavior)) = delimited(
+        tuple((
+            tag_no_case("DROP"),
+            multispace1,
+            tag_no_case("TABLE"),
+            multispace1,
+        )),
+        tuple((terminated(table_name, multispace1), drop_behavior)),
+        parse_statement_terminator,
+    )(i)?;
+
+    let drop_table = DropTable::new(&table_name, drop_behavior);
+
+    Ok((i, drop_table))
+}
+
+fn table_name(i: &[u8]) -> IResult<&[u8], TableName> {
+    let (i, (opt_local_or_schema, name)) =
+        tuple((opt(terminated(local_or_schema_qualifier, tag("."))), ident))(i)?;
+
+    let mut table_name = TableName::new(&name);
+    if let Some(local_or_schema) = opt_local_or_schema {
+        table_name.with_local_or_schema(local_or_schema);
+    }
+
+    Ok((i, table_name))
+}
+
+fn local_or_schema_qualifier(i: &[u8]) -> IResult<&[u8], LocalOrSchemaQualifier> {
+    alt((
+        map(local_qualifier, LocalOrSchemaQualifier::LocalQualifier),
+        map(
+            schema_for_qualified_table_name,
+            LocalOrSchemaQualifier::Schema,
+        ),
+    ))(i)
+}
+
+fn local_qualifier(i: &[u8]) -> IResult<&[u8], LocalQualifier> {
+    map(tag_no_case("MODULE"), |_| LocalQualifier::Module)(i)
+}
+
 fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
     let (remaining, (schema_name_clause,)) = tuple((alt((
         map(
@@ -89,20 +132,29 @@ fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
 }
 
 fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
-    let (i, idents) = separated_list1(tag("."), ident)(i)?;
+    alt((
+        map(
+            tuple((terminated(ident, tag(".")), ident)),
+            |(catalog, schema)| SchemaName::new(Some(&catalog), &schema),
+        ),
+        map(ident, |schema| SchemaName::new(None, &schema)),
+    ))(i)
+}
 
-    let schema_name = match &idents[..] {
-        [schema_name] => SchemaName::new(None, schema_name),
-        [catalog_name, schema_name] => SchemaName::new(Some(catalog_name), schema_name),
-        _ => {
-            return Err(nom::Err::Error(nom::error::Error::new(
-                i,
-                nom::error::ErrorKind::Tag,
-            )))
-        }
-    };
-
-    Ok((i, schema_name))
+fn schema_for_qualified_table_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
+    alt((
+        map(
+            terminated(
+                tuple((terminated(ident, tag(".")), ident)),
+                peek(tuple((tag("."), ident))),
+            ),
+            |(catalog, schema)| SchemaName::new(Some(&catalog), &schema),
+        ),
+        map(
+            terminated(ident, peek(tuple((tag("."), ident)))),
+            |schema| SchemaName::new(None, &schema),
+        ),
+    ))(i)
 }
 
 #[allow(dead_code)]

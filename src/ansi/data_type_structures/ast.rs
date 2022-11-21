@@ -25,6 +25,12 @@ pub enum DataType {
     ///
     /// [<character_length>]: CharacterLength
     Varchar(Option<CharacterLength>),
+    /// `CHARACTER LARGE OBJECT[(<character large object length>)]`.
+    CharacterLargeObject(Option<CharacterLargeObjectLength>),
+    /// `CHAR LARGE OBJECT[<character large object length>]`.
+    CharLargeObject(Option<CharacterLargeObjectLength>),
+    /// `CLOB[<character large object length>]`.
+    Clob(Option<CharacterLargeObjectLength>),
     /// `NUMERIC[(<precision>, [<scale>])]`
     Numeric(ExactNumberInfo),
     /// `DECIMAL[(<precision>, [<scale>])]`
@@ -70,7 +76,7 @@ pub struct CharacterLength {
     /// `<length>`
     length: u32,
     /// `[<character length units>]`
-    opt_units: Option<CharacterLengthUnits>,
+    opt_units: Option<CharLengthUnits>,
 }
 
 /// Character length units of a string literal [(1)].
@@ -83,18 +89,72 @@ pub struct CharacterLength {
 ///
 /// [(1)]: https://jakewheat.github.io/sql-overview/sql-2016-foundation-grammar.html#char-length-units
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum CharacterLengthUnits {
+pub enum CharLengthUnits {
     /// `CHARACTERS`
     Characters,
     /// `OCTETS`
     Octets,
 }
 
-/// Timezone info for temporal types (`<with or without time zone>`).
+/// Character large object length information (`<character large object
+/// length>`).
+///
+/// # Supported syntax
+/// ```plaintext
+/// <large object length> [<char length units>]
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub struct CharacterLargeObjectLength {
+    /// `<large object length>`
+    length: LargeObjectLength,
+    /// `[<char length units>]`
+    opt_units: Option<CharLengthUnits>,
+}
+
+/// Large object length (`<large object length>`).
+///
+/// # Supported syntax
+/// ```plaintext
+/// <unsigned integer>[<multiplier>]
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+pub struct LargeObjectLength {
+    /// `<unsigned integer>`.
+    length: u32,
+    /// `[<multiplier>]`.
+    multiplier: Option<Multiplier>,
+}
+
+/// Multiplier information of scale (`<multiplier>`).
+///
+/// # Supported syntax
+/// ```plaintext
+/// K
+/// | M
+/// | G
+/// | T
+/// | P
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum Multiplier {
+    /// `K` (kilo)
+    K,
+    /// `M` (mega)
+    M,
+    /// `G` (giga)
+    G,
+    /// `T` (tera)
+    T,
+    /// `P` (peta)
+    P,
+}
+
+/// Precision and scale information for exact numbers (`[(precision[,
+/// scale])]`).
 ///
 /// # Supported syntax
 /// ```doc
-/// [WITH TIME ZONE|WITHOUT TIME ZONE]
+/// [(<precision>[, scale])]
 /// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub enum ExactNumberInfo {
@@ -111,7 +171,8 @@ pub enum ExactNumberInfo {
 ///
 /// # Supported syntax
 /// ```doc
-/// [WITH TIME ZONE|WITHOUT TIME ZONE]
+/// WITH TIME ZONE
+/// | WITHOUT TIME ZONE
 /// ```
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub enum WithOrWithoutTimeZone {
@@ -124,6 +185,8 @@ pub enum WithOrWithoutTimeZone {
     WithoutTimeZone,
 }
 
+// TODO split data types
+#[allow(clippy::too_many_lines)]
 impl fmt::Display for DataType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -160,6 +223,27 @@ impl fmt::Display for DataType {
 
                 if let Some(len) = opt_len {
                     write!(f, "({len})")?;
+                }
+            }
+            Self::CharacterLargeObject(opt_character_large_object_length) => {
+                write!(f, "CHARACTER LARGE OBJECT")?;
+
+                if let Some(character_large_object_length) = opt_character_large_object_length {
+                    write!(f, "({character_large_object_length})")?;
+                }
+            }
+            Self::CharLargeObject(opt_character_large_object_length) => {
+                write!(f, "CHAR LARGE OBJECT")?;
+
+                if let Some(character_large_object_length) = opt_character_large_object_length {
+                    write!(f, "({character_large_object_length})")?;
+                }
+            }
+            Self::Clob(opt_character_large_object_length) => {
+                write!(f, "CLOB")?;
+
+                if let Some(character_large_object_length) = opt_character_large_object_length {
+                    write!(f, "({character_large_object_length})")?;
                 }
             }
             Self::Numeric(exact_number_info) => {
@@ -242,7 +326,7 @@ impl CharacterLength {
         }
     }
 
-    pub fn with_units(&mut self, units: CharacterLengthUnits) -> &mut Self {
+    pub fn with_units(&mut self, units: CharLengthUnits) -> &mut Self {
         self.opt_units = Some(units);
         self
     }
@@ -253,7 +337,7 @@ impl CharacterLength {
     }
 
     #[must_use]
-    pub fn opt_units(&self) -> Option<CharacterLengthUnits> {
+    pub fn opt_units(&self) -> Option<CharLengthUnits> {
         self.opt_units
     }
 }
@@ -270,11 +354,98 @@ impl fmt::Display for CharacterLength {
     }
 }
 
-impl fmt::Display for CharacterLengthUnits {
+impl fmt::Display for CharLengthUnits {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Characters => write!(f, "CHARACTERS")?,
             Self::Octets => write!(f, "OCTETS")?,
+        }
+        Ok(())
+    }
+}
+
+impl CharacterLargeObjectLength {
+    #[must_use]
+    pub fn new(length: LargeObjectLength) -> Self {
+        Self {
+            length,
+            opt_units: None,
+        }
+    }
+
+    pub fn with_units(&mut self, units: CharLengthUnits) -> &mut Self {
+        self.opt_units = Some(units);
+        self
+    }
+
+    #[must_use]
+    pub fn length(&self) -> LargeObjectLength {
+        self.length
+    }
+
+    #[must_use]
+    pub fn opt_units(&self) -> Option<CharLengthUnits> {
+        self.opt_units
+    }
+}
+
+impl fmt::Display for CharacterLargeObjectLength {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.length())?;
+
+        if let Some(units) = self.opt_units() {
+            write!(f, " {units}")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl LargeObjectLength {
+    #[must_use]
+    pub fn new(length: u32) -> Self {
+        Self {
+            length,
+            multiplier: None,
+        }
+    }
+
+    pub fn with_multiplier(&mut self, multiplier: Multiplier) -> &mut Self {
+        self.multiplier = Some(multiplier);
+        self
+    }
+
+    #[must_use]
+    pub fn length(&self) -> u32 {
+        self.length
+    }
+
+    #[must_use]
+    pub fn opt_multiplier(&self) -> Option<Multiplier> {
+        self.multiplier
+    }
+}
+
+impl fmt::Display for LargeObjectLength {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.length())?;
+
+        if let Some(multiplier) = self.opt_multiplier() {
+            write!(f, "{multiplier}")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for Multiplier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::K => write!(f, "K")?,
+            Self::M => write!(f, "M")?,
+            Self::G => write!(f, "G")?,
+            Self::T => write!(f, "T")?,
+            Self::P => write!(f, "P")?,
         }
         Ok(())
     }

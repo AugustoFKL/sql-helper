@@ -7,5 +7,7 @@
 //! dialect-specific implementations, instead of using the way too genetic
 //! implementation from the parser library.
 
+extern crate core;
+
 pub mod ansi;
 pub mod common;

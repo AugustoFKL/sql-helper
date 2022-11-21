@@ -1,3 +1,5 @@
+pub mod create_table;
+
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::character::complete::multispace1;
@@ -10,7 +12,8 @@ use crate::ansi::{
     ColumnDefinition, CreateSchema, DropBehavior, DropSchema, DropTable, LocalOrSchemaQualifier,
     LocalQualifier, SchemaName, SchemaNameClause, Statement, TableName,
 };
-use crate::common::parsers::{ident, parse_statement_terminator};
+use crate::ansi::parser::create_table::create_table;
+use crate::common::parsers::{ident, statement_terminator};
 
 /// Parses a `Statement` [(1)] from the give input.
 ///
@@ -24,6 +27,7 @@ pub fn parse_statement(i: &[u8]) -> IResult<&[u8], Statement> {
         map(create_schema, Statement::CreateSchema),
         map(drop_schema, Statement::DropSchema),
         map(drop_table, Statement::DropTable),
+        map(create_table, Statement::CreateTable),
     ))(i)
 }
 
@@ -36,7 +40,7 @@ fn create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
             multispace1,
         )),
         schema_name_clause,
-        parse_statement_terminator,
+        statement_terminator,
     )(i)?;
 
     let create_schema = CreateSchema { schema_name_clause };
@@ -53,7 +57,7 @@ fn drop_schema(i: &[u8]) -> IResult<&[u8], DropSchema> {
             multispace1,
         )),
         tuple((terminated(schema_name, multispace1), drop_behavior)),
-        parse_statement_terminator,
+        statement_terminator,
     )(i)?;
 
     let drop_schema = DropSchema {
@@ -73,7 +77,7 @@ fn drop_table(i: &[u8]) -> IResult<&[u8], DropTable> {
             multispace1,
         )),
         tuple((terminated(table_name, multispace1), drop_behavior)),
-        parse_statement_terminator,
+        statement_terminator,
     )(i)?;
 
     let drop_table = DropTable::new(&table_name, drop_behavior);

@@ -1,10 +1,12 @@
 use std::fmt;
 
 use crate::ansi::data_type_structures::ast::DataType;
+use crate::ansi::statements::create_table::CreateTable;
 use crate::common::Ident;
 
 pub mod data_type_structures;
 pub mod parser;
+pub mod statements;
 
 /// `ANSI` statements [(1)].
 ///
@@ -17,6 +19,8 @@ pub enum Statement {
     DropSchema(DropSchema),
     /// DROP TABLE statement
     DropTable(DropTable),
+    /// CREATE TABLE statement
+    CreateTable(CreateTable),
 }
 
 /// `CREATE SCHEMA` statement [(1)].
@@ -159,16 +163,12 @@ pub enum LocalQualifier {
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::CreateSchema(create_schema) => {
-                write!(f, "{create_schema}")
-            }
-            Self::DropSchema(drop_schema) => {
-                write!(f, "{drop_schema}")
-            }
-            Self::DropTable(drop_table) => {
-                write!(f, "{drop_table}")
-            }
+            Self::CreateSchema(create_schema) => write!(f, "{create_schema}")?,
+            Self::DropSchema(drop_schema) => write!(f, "{drop_schema}")?,
+            Self::DropTable(drop_table) => write!(f, "{drop_table}")?,
+            Self::CreateTable(create_table) => write!(f, "{create_table}")?,
         }
+        Ok(())
     }
 }
 

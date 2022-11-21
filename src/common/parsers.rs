@@ -17,7 +17,7 @@ use crate::common::{is_sql_identifier, Ident, QuoteStyle};
 /// # Errors
 /// If the input string does not contain an `'`, an line ending (\n, \r, \r\n),
 /// or an EOF, this function returns an error.
-pub fn parse_statement_terminator(i: &[u8]) -> IResult<&[u8], ()> {
+pub fn statement_terminator(i: &[u8]) -> IResult<&[u8], ()> {
     let (remaining_input, _) =
         delimited(multispace0, alt((tag(";"), line_ending, eof)), multispace0)(i)?;
 

@@ -67,6 +67,22 @@ pub fn is_sql_identifier(chr: u8) -> bool {
     is_alphanumeric(chr) || chr == b'_' || chr == b'@'
 }
 
+#[must_use]
+pub fn display_comma_separated(list: &[impl ToString]) -> String {
+    list.iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+#[must_use]
+pub fn if_some_string_preceded_by(opt_item: Option<impl ToString>, preceded_by: &str) -> String {
+    match opt_item {
+        None => String::default(),
+        Some(item) => format!("{preceded_by}{}", item.to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::common::parsers::ident;

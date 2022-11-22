@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::ansi::{ColumnDefinition, TableName};
+use crate::ansi::ast::common::{ColumnDefinition, TableName};
 use crate::common::{display_comma_separated, if_some_string_preceded_by};
 
 /// Create table statement.

@@ -5,7 +5,7 @@ use nom::combinator::{map, opt};
 use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 
-use crate::ansi::data_type_structures::ast::{
+use crate::ansi::ast::data_types::{
     CharLengthUnits, CharacterLargeObjectLength, CharacterLength, DataType, ExactNumberInfo,
     LargeObjectLength, Multiplier, WithOrWithoutTimeZone,
 };

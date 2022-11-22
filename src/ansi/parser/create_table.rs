@@ -55,7 +55,11 @@ fn table_contents_source(i: &[u8]) -> IResult<&[u8], TableContentsSource> {
 
 fn table_element_list(i: &[u8]) -> IResult<&[u8], TableElementList> {
     map(
-        separated_list1(tuple((multispace0, tag(","), multispace0)), table_element),
+        delimited(
+            tuple((tag("("), multispace0)),
+            separated_list1(tuple((multispace0, tag(","), multispace0)), table_element),
+            tuple((multispace0, tag(")"))),
+        ),
         |list| TableElementList::new(&list),
     )(i)
 }

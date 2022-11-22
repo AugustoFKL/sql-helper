@@ -6,7 +6,8 @@ use nom::sequence::{preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::ast::common::{
-    ColumnDefinition, DropBehavior, LocalOrSchemaQualifier, LocalQualifier, SchemaName, TableName,
+    ColumnDefinition, DropBehavior, LocalOrSchemaQualifier, LocalQualifier, ReferentialAction,
+    SchemaName, TableName,
 };
 use crate::ansi::parser::data_types::data_type;
 use crate::common::parsers::ident;
@@ -122,6 +123,23 @@ pub fn drop_behavior(i: &[u8]) -> IResult<&[u8], DropBehavior> {
     ))(i)
 }
 
+/// Parses a referential action [(1)](ReferentialAction).
+///
+/// # Errors
+/// If the received input do not match a case-insensitive variant of the
+/// referential action enum, this function will return an error.
+pub fn referential_action(i: &[u8]) -> IResult<&[u8], ReferentialAction> {
+    alt((
+        map(tag_no_case("CASCADE"), |_| ReferentialAction::Cascade),
+        map(tag_no_case("SET NULL"), |_| ReferentialAction::SetNull),
+        map(tag_no_case("SET DEFAULT"), |_| {
+            ReferentialAction::SetDefault
+        }),
+        map(tag_no_case("RESTRICT"), |_| ReferentialAction::Restrict),
+        map(tag_no_case("NO ACTION"), |_| ReferentialAction::NoAction),
+    ))(i)
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_str_eq;
@@ -152,6 +170,18 @@ mod tests {
         assert_str_eq!(
             input,
             column_definition(input.as_ref()).unwrap().1.to_string()
+        );
+    }
+
+    #[test_case("CASCADE")]
+    #[test_case("SET NULL")]
+    #[test_case("SET DEFAULT")]
+    #[test_case("RESTRICT")]
+    #[test_case("NO ACTION")]
+    fn parse_referential_action(input: &str) {
+        assert_str_eq!(
+            input,
+            referential_action(input.as_ref()).unwrap().1.to_string()
         );
     }
 }

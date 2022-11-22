@@ -1,6 +1,7 @@
+use std::fmt;
+
 use crate::ansi::ast::data_types::DataType;
 use crate::common::Ident;
-use std::fmt;
 
 /// Qualified or unqualified identifier representing a schema.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -70,6 +71,30 @@ pub enum DropBehavior {
     Cascade,
     /// RESTRICT - the drop is restricted to the specific structure.
     Restrict,
+}
+
+/// Referential action.
+///
+/// # Supported syntax
+/// ```plaintext
+///   CASCADE
+/// | SET NULL
+/// | SET DEFAULT
+/// | RESTRICT
+/// | NO ACTION
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum ReferentialAction {
+    /// `CASCADE`.
+    Cascade,
+    /// `SET NULL`.
+    SetNull,
+    /// `SET DEFAULT`.
+    SetDefault,
+    /// `RESTRICT`.
+    Restrict,
+    /// `NO ACTION`.
+    NoAction,
 }
 
 impl SchemaName {
@@ -206,6 +231,20 @@ impl fmt::Display for DropBehavior {
             Self::Restrict => {
                 write!(f, "RESTRICT")?;
             }
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for ReferentialAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Cascade => write!(f, "CASCADE")?,
+            Self::SetNull => write!(f, "SET NULL")?,
+            Self::SetDefault => write!(f, "SET DEFAULT")?,
+            Self::Restrict => write!(f, "RESTRICT")?,
+            Self::NoAction => write!(f, "NO ACTION")?,
         }
 
         Ok(())

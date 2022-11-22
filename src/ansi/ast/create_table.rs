@@ -150,7 +150,7 @@ impl TableElementList {
 }
 impl fmt::Display for TableElementList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", display_comma_separated(self.element_list()))?;
+        write!(f, "({})", display_comma_separated(self.element_list()))?;
         Ok(())
     }
 }

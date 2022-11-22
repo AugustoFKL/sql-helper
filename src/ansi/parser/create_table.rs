@@ -6,10 +6,10 @@ use nom::multi::separated_list1;
 use nom::sequence::{delimited, preceded, tuple};
 use nom::IResult;
 
-use crate::ansi::parser::{column_definition, table_name};
-use crate::ansi::statements::create_table::{
+use crate::ansi::ast::create_table::{
     CreateTable, TableContentsSource, TableElement, TableElementList, TableScope,
 };
+use crate::ansi::parser::common::{column_definition, table_name};
 use crate::common::parsers::statement_terminator;
 
 /// Parses a `CREATE TABLE` statement.

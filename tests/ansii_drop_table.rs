@@ -1,10 +1,11 @@
 use spectral::assert_that;
 
 use sql_helper::ansi;
-use sql_helper::ansi::{
-    DropBehavior, DropTable, LocalOrSchemaQualifier, LocalQualifier, SchemaName, Statement,
-    TableName,
+use sql_helper::ansi::ast::common::{
+    DropBehavior, LocalOrSchemaQualifier, LocalQualifier, SchemaName, TableName,
 };
+use sql_helper::ansi::ast::drop_table::DropTable;
+use sql_helper::ansi::Statement;
 use sql_helper::common::Ident;
 
 use crate::common::verified_stmt;

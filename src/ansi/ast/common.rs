@@ -119,6 +119,21 @@ pub struct UpdateRule {
     referential_action: ReferentialAction,
 }
 
+/// Referential triggered action.
+///
+/// # Supported syntax
+/// ```plaintext
+///   <update rule> [<delete rule>]
+/// | <delete rule> [<update rule>]
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum ReferentialTriggeredAction {
+    /// `<update rule> [<delete rule>]`.
+    UpdateFirst(UpdateRule, Option<DeleteRule>),
+    /// `<delete rule> [<update rule>]`.
+    DeleteFirst(DeleteRule, Option<UpdateRule>),
+}
+
 impl SchemaName {
     #[must_use]
     pub fn new(opt_catalog_name: Option<&Ident>, name: &Ident) -> Self {
@@ -307,6 +322,29 @@ impl UpdateRule {
 impl fmt::Display for UpdateRule {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ON UPDATE {}", self.referential_action())?;
+        Ok(())
+    }
+}
+
+impl fmt::Display for ReferentialTriggeredAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UpdateFirst(update, opt_delete) => {
+                write!(f, "{update}")?;
+
+                if let Some(delete) = opt_delete {
+                    write!(f, " {delete}")?;
+                }
+            }
+            Self::DeleteFirst(delete, opt_update) => {
+                write!(f, "{delete}")?;
+
+                if let Some(update) = opt_update {
+                    write!(f, " {update}")?;
+                }
+            }
+        }
+
         Ok(())
     }
 }

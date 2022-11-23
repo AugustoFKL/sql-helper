@@ -134,6 +134,24 @@ pub enum ReferentialTriggeredAction {
     DeleteFirst(DeleteRule, Option<UpdateRule>),
 }
 
+/// Referential action match type.
+///
+/// # Supported syntax
+/// ```plaintext
+///   FULL
+/// | PARTIAL
+/// | SIMPLE
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum MatchType {
+    /// `FULL`.
+    Full,
+    /// `PARTIAL`.
+    Partial,
+    /// `SIMPLE`.
+    Simple,
+}
+
 impl SchemaName {
     #[must_use]
     pub fn new(opt_catalog_name: Option<&Ident>, name: &Ident) -> Self {
@@ -345,6 +363,17 @@ impl fmt::Display for ReferentialTriggeredAction {
             }
         }
 
+        Ok(())
+    }
+}
+
+impl fmt::Display for MatchType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Full => write!(f, "FULL")?,
+            Self::Partial => write!(f, "PARTIAL")?,
+            Self::Simple => write!(f, "SIMPLE")?,
+        }
         Ok(())
     }
 }

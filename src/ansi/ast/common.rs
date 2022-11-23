@@ -108,6 +108,17 @@ pub struct DeleteRule {
     referential_action: ReferentialAction,
 }
 
+/// Update rule.
+///
+/// # Supported syntax
+/// ```plaintext
+/// ON UPDATE <referential action>
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct UpdateRule {
+    referential_action: ReferentialAction,
+}
+
 impl SchemaName {
     #[must_use]
     pub fn new(opt_catalog_name: Option<&Ident>, name: &Ident) -> Self {
@@ -277,6 +288,25 @@ impl DeleteRule {
 impl fmt::Display for DeleteRule {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "ON DELETE {}", self.referential_action())?;
+        Ok(())
+    }
+}
+
+impl UpdateRule {
+    #[must_use]
+    pub fn new(referential_action: ReferentialAction) -> Self {
+        Self { referential_action }
+    }
+
+    #[must_use]
+    pub fn referential_action(&self) -> ReferentialAction {
+        self.referential_action
+    }
+}
+
+impl fmt::Display for UpdateRule {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ON UPDATE {}", self.referential_action())?;
         Ok(())
     }
 }

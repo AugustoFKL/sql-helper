@@ -6,8 +6,8 @@ use nom::sequence::{preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::ast::common::{
-    ColumnDefinition, DropBehavior, LocalOrSchemaQualifier, LocalQualifier, ReferentialAction,
-    SchemaName, TableName,
+    ColumnDefinition, DeleteRule, DropBehavior, LocalOrSchemaQualifier, LocalQualifier,
+    ReferentialAction, SchemaName, TableName,
 };
 use crate::ansi::parser::data_types::data_type;
 use crate::common::parsers::ident;
@@ -140,6 +140,22 @@ pub fn referential_action(i: &[u8]) -> IResult<&[u8], ReferentialAction> {
     ))(i)
 }
 
+/// Parses a delete rule [(1)](DeleteRule).
+///
+/// # Errors
+/// If the received input do not match the syntax of a delete rule, or the
+/// internal referential action is invalid, this function call will return an
+/// error.
+pub fn delete_rule(i: &[u8]) -> IResult<&[u8], DeleteRule> {
+    map(
+        preceded(
+            tuple((tag_no_case("ON DELETE"), multispace1)),
+            referential_action,
+        ),
+        DeleteRule::new,
+    )(i)
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_str_eq;
@@ -183,5 +199,14 @@ mod tests {
             input,
             referential_action(input.as_ref()).unwrap().1.to_string()
         );
+    }
+
+    #[test_case("ON DELETE CASCADE")]
+    #[test_case("ON DELETE SET NULL")]
+    #[test_case("ON DELETE SET DEFAULT")]
+    #[test_case("ON DELETE RESTRICT")]
+    #[test_case("ON DELETE NO ACTION")]
+    fn parse_delete_rule(input: &str) {
+        assert_str_eq!(input, delete_rule(input.as_ref()).unwrap().1.to_string());
     }
 }

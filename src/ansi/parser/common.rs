@@ -7,7 +7,7 @@ use nom::IResult;
 
 use crate::ansi::ast::common::{
     ColumnDefinition, DeleteRule, DropBehavior, LocalOrSchemaQualifier, LocalQualifier,
-    ReferentialAction, SchemaName, TableName,
+    ReferentialAction, SchemaName, TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
 use crate::common::parsers::ident;
@@ -156,6 +156,22 @@ pub fn delete_rule(i: &[u8]) -> IResult<&[u8], DeleteRule> {
     )(i)
 }
 
+/// Parses a delete rule [(1)](UpdateRule).
+///
+/// # Errors
+/// If the received input do not match the syntax of a delete rule, or the
+/// internal referential action is invalid, this function call will return an
+/// error.
+pub fn update_rule(i: &[u8]) -> IResult<&[u8], UpdateRule> {
+    map(
+        preceded(
+            tuple((tag_no_case("ON UPDATE"), multispace1)),
+            referential_action,
+        ),
+        UpdateRule::new,
+    )(i)
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_str_eq;
@@ -208,5 +224,14 @@ mod tests {
     #[test_case("ON DELETE NO ACTION")]
     fn parse_delete_rule(input: &str) {
         assert_str_eq!(input, delete_rule(input.as_ref()).unwrap().1.to_string());
+    }
+
+    #[test_case("ON UPDATE CASCADE")]
+    #[test_case("ON UPDATE SET NULL")]
+    #[test_case("ON UPDATE SET DEFAULT")]
+    #[test_case("ON UPDATE RESTRICT")]
+    #[test_case("ON UPDATE NO ACTION")]
+    fn parse_update_rule(input: &str) {
+        assert_str_eq!(input, update_rule(input.as_ref()).unwrap().1.to_string());
     }
 }

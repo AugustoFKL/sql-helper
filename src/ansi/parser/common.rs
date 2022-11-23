@@ -1,13 +1,15 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
-use nom::character::complete::multispace1;
+use nom::character::complete::{multispace0, multispace1};
 use nom::combinator::{map, opt, peek};
+use nom::multi::separated_list1;
 use nom::sequence::{preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::ast::common::{
-    ColumnDefinition, DeleteRule, DropBehavior, LocalOrSchemaQualifier, LocalQualifier, MatchType,
-    ReferentialAction, ReferentialTriggeredAction, SchemaName, TableName, UpdateRule,
+    ColumnDefinition, ColumnNameList, DeleteRule, DropBehavior, LocalOrSchemaQualifier,
+    LocalQualifier, MatchType, ReferentialAction, ReferentialTriggeredAction, SchemaName,
+    TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
 use crate::common::parsers::ident;
@@ -203,6 +205,18 @@ pub fn match_type(i: &[u8]) -> IResult<&[u8], MatchType> {
     ))(i)
 }
 
+/// Parses a column name list [(1)](ColumnNameList).
+///
+/// # Errors
+/// If the column list has invalid identifiers, or if there's no columns to be
+/// parsed, this function call will return an error.
+pub fn column_name_list(i: &[u8]) -> IResult<&[u8], ColumnNameList> {
+    map(
+        separated_list1(tuple((multispace0, tag(","), multispace0)), ident),
+        |list| ColumnNameList::new(&list),
+    )(i)
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_str_eq;
@@ -285,5 +299,21 @@ mod tests {
     #[test_case("SIMPLE")]
     fn parse_match_type(input: &str) {
         assert_str_eq!(input, match_type(input.as_ref()).unwrap().1.to_string());
+    }
+
+    #[test_case("name")]
+    #[test_case("name_1, name_2")]
+    #[test_case("name_1, name_2, name_3, name_4")]
+    fn parse_column_name_list(input: &str) {
+        assert_str_eq!(
+            input,
+            column_name_list(input.as_ref()).unwrap().1.to_string()
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn parse_empty_column_name_list() {
+        column_name_list(b"").unwrap();
     }
 }

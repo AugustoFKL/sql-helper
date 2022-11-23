@@ -7,7 +7,7 @@ use nom::IResult;
 
 use crate::ansi::ast::common::{
     ColumnDefinition, DeleteRule, DropBehavior, LocalOrSchemaQualifier, LocalQualifier,
-    ReferentialAction, SchemaName, TableName, UpdateRule,
+    ReferentialAction, ReferentialTriggeredAction, SchemaName, TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
 use crate::common::parsers::ident;
@@ -159,7 +159,7 @@ pub fn delete_rule(i: &[u8]) -> IResult<&[u8], DeleteRule> {
 /// Parses a delete rule [(1)](UpdateRule).
 ///
 /// # Errors
-/// If the received input do not match the syntax of a delete rule, or the
+/// If the received input do not match the syntax of a update rule, or the
 /// internal referential action is invalid, this function call will return an
 /// error.
 pub fn update_rule(i: &[u8]) -> IResult<&[u8], UpdateRule> {
@@ -170,6 +170,24 @@ pub fn update_rule(i: &[u8]) -> IResult<&[u8], UpdateRule> {
         ),
         UpdateRule::new,
     )(i)
+}
+
+/// Parses a referential triggered action [(1)](ReferentialTriggeredAction).
+///
+/// # Errors
+/// If the input does not match any of the two possible syntaxes of the
+/// referential triggered action, this function call will return an error.
+pub fn referential_triggered_action(i: &[u8]) -> IResult<&[u8], ReferentialTriggeredAction> {
+    alt((
+        map(
+            tuple((update_rule, opt(preceded(multispace1, delete_rule)))),
+            |(update, opt_delete)| ReferentialTriggeredAction::UpdateFirst(update, opt_delete),
+        ),
+        map(
+            tuple((delete_rule, opt(preceded(multispace1, update_rule)))),
+            |(delete, opt_update)| ReferentialTriggeredAction::DeleteFirst(delete, opt_update),
+        ),
+    ))(i)
 }
 
 #[cfg(test)]
@@ -233,5 +251,19 @@ mod tests {
     #[test_case("ON UPDATE NO ACTION")]
     fn parse_update_rule(input: &str) {
         assert_str_eq!(input, update_rule(input.as_ref()).unwrap().1.to_string());
+    }
+
+    #[test_case("ON UPDATE CASCADE")]
+    #[test_case("ON DELETE CASCADE")]
+    #[test_case("ON UPDATE CASCADE ON DELETE CASCADE")]
+    #[test_case("ON DELETE CASCADE ON UPDATE CASCADE")]
+    fn parse_referential_triggered_action(input: &str) {
+        assert_str_eq!(
+            input,
+            referential_triggered_action(input.as_ref())
+                .unwrap()
+                .1
+                .to_string()
+        );
     }
 }

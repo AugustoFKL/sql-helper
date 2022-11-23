@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::ansi::ast::data_types::DataType;
-use crate::common::Ident;
+use crate::common::{display_comma_separated, Ident};
 
 /// Qualified or unqualified identifier representing a schema.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -150,6 +150,17 @@ pub enum MatchType {
     Partial,
     /// `SIMPLE`.
     Simple,
+}
+
+/// Column name list
+///
+/// # Supported syntax
+/// ```plaintext
+/// <column name> [ {<comma> <column name> }...]
+/// ```
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct ColumnNameList {
+    column_names: Vec<Ident>,
 }
 
 impl SchemaName {
@@ -374,6 +385,26 @@ impl fmt::Display for MatchType {
             Self::Partial => write!(f, "PARTIAL")?,
             Self::Simple => write!(f, "SIMPLE")?,
         }
+        Ok(())
+    }
+}
+
+impl ColumnNameList {
+    #[must_use]
+    pub fn new(column_names: &[Ident]) -> Self {
+        Self {
+            column_names: column_names.to_vec(),
+        }
+    }
+
+    #[must_use]
+    pub fn column_names(&self) -> &[Ident] {
+        &self.column_names
+    }
+}
+impl fmt::Display for ColumnNameList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", display_comma_separated(self.column_names()))?;
         Ok(())
     }
 }

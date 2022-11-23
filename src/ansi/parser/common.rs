@@ -6,7 +6,7 @@ use nom::sequence::{preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::ast::common::{
-    ColumnDefinition, DeleteRule, DropBehavior, LocalOrSchemaQualifier, LocalQualifier,
+    ColumnDefinition, DeleteRule, DropBehavior, LocalOrSchemaQualifier, LocalQualifier, MatchType,
     ReferentialAction, ReferentialTriggeredAction, SchemaName, TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
@@ -190,6 +190,19 @@ pub fn referential_triggered_action(i: &[u8]) -> IResult<&[u8], ReferentialTrigg
     ))(i)
 }
 
+/// Parses a foreign key match type [(1)](MatchType).
+///
+/// # Errors
+/// If the input does not match any of the three possible match types syntax,
+/// this function call will return an error.
+pub fn match_type(i: &[u8]) -> IResult<&[u8], MatchType> {
+    alt((
+        map(tag_no_case("FULL"), |_| MatchType::Full),
+        map(tag_no_case("PARTIAL"), |_| MatchType::Partial),
+        map(tag_no_case("SIMPLE"), |_| MatchType::Simple),
+    ))(i)
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_str_eq;
@@ -265,5 +278,12 @@ mod tests {
                 .1
                 .to_string()
         );
+    }
+
+    #[test_case("FULL")]
+    #[test_case("PARTIAL")]
+    #[test_case("SIMPLE")]
+    fn parse_match_type(input: &str) {
+        assert_str_eq!(input, match_type(input.as_ref()).unwrap().1.to_string());
     }
 }

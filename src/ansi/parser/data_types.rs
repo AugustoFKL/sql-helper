@@ -9,7 +9,7 @@ use crate::ansi::ast::data_types::{
     CharLengthUnits, CharacterLargeObjectLength, CharacterLength, DataType, ExactNumberInfo,
     LargeObjectLength, Multiplier, WithOrWithoutTimeZone,
 };
-use crate::common::parsers::delimited_u32;
+use crate::common::parsers::{comma, delimited_u32, left_paren, right_paren};
 
 /// Parses `ANSI` data type [(1)].
 ///
@@ -77,9 +77,9 @@ fn character_large_object_types(input: &[u8]) -> IResult<&[u8], DataType> {
             preceded(
                 tag_no_case("CHARACTER LARGE OBJECT"),
                 opt(delimited(
-                    tuple((multispace0, tag("("), multispace0)),
+                    tuple((multispace0, left_paren, multispace0)),
                     character_large_object_length,
-                    tuple((multispace0, tag(")"))),
+                    tuple((multispace0, right_paren)),
                 )),
             ),
             DataType::CharacterLargeObject,
@@ -88,9 +88,9 @@ fn character_large_object_types(input: &[u8]) -> IResult<&[u8], DataType> {
             preceded(
                 tag_no_case("CHAR LARGE OBJECT"),
                 opt(delimited(
-                    tuple((multispace0, tag("("), multispace0)),
+                    tuple((multispace0, left_paren, multispace0)),
                     character_large_object_length,
-                    tuple((multispace0, tag(")"))),
+                    tuple((multispace0, right_paren)),
                 )),
             ),
             DataType::CharLargeObject,
@@ -99,9 +99,9 @@ fn character_large_object_types(input: &[u8]) -> IResult<&[u8], DataType> {
             preceded(
                 tag_no_case("CLOB"),
                 opt(delimited(
-                    tuple((multispace0, tag("("), multispace0)),
+                    tuple((multispace0, left_paren, multispace0)),
                     character_large_object_length,
-                    tuple((multispace0, tag(")"))),
+                    tuple((multispace0, right_paren)),
                 )),
             ),
             DataType::Clob,
@@ -176,9 +176,9 @@ fn datetime_type(i: &[u8]) -> IResult<&[u8], DataType> {
 
 fn opt_character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
     let (i, opt_character_length) = opt(delimited(
-        tuple((tag_no_case("("), multispace0)),
+        tuple((left_paren, multispace0)),
         tuple((u32, opt(preceded(multispace1, char_length_units)))),
-        tuple((multispace0, tag(")"))),
+        tuple((multispace0, right_paren)),
     ))(i)?;
 
     if let Some((length, opt_units)) = opt_character_length {
@@ -237,20 +237,17 @@ fn char_length_units(i: &[u8]) -> IResult<&[u8], CharLengthUnits> {
 fn exact_number_info(i: &[u8]) -> IResult<&[u8], ExactNumberInfo> {
     alt((
         delimited(
-            tuple((multispace0, tag("("))),
+            tuple((multispace0, left_paren)),
             map(
-                tuple((
-                    u32,
-                    preceded(tuple((multispace0, tag(","), multispace0)), u32),
-                )),
+                tuple((u32, preceded(tuple((multispace0, comma, multispace0)), u32))),
                 |(precision, scale)| ExactNumberInfo::PrecisionAndScale(precision, scale),
             ),
-            tuple((multispace0, tag(")"))),
+            tuple((multispace0, right_paren)),
         ),
         delimited(
-            tuple((multispace0, tag("("))),
+            tuple((multispace0, left_paren)),
             map(u32, ExactNumberInfo::Precision),
-            tuple((multispace0, tag(")"))),
+            tuple((multispace0, right_paren)),
         ),
         map(tag(""), |_| ExactNumberInfo::None),
     ))(i)

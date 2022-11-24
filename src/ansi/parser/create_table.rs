@@ -1,5 +1,5 @@
 use nom::branch::alt;
-use nom::bytes::complete::{tag, tag_no_case};
+use nom::bytes::complete::tag_no_case;
 use nom::character::complete::{multispace0, multispace1};
 use nom::combinator::{map, opt};
 use nom::multi::separated_list1;
@@ -10,7 +10,7 @@ use crate::ansi::ast::create_table::{
     CreateTable, TableContentsSource, TableElement, TableElementList, TableScope,
 };
 use crate::ansi::parser::common::{column_definition, table_name};
-use crate::common::parsers::statement_terminator;
+use crate::common::parsers::{comma, left_paren, right_paren, statement_terminator};
 
 /// Parses a `CREATE TABLE` statement.
 ///
@@ -56,9 +56,9 @@ fn table_contents_source(i: &[u8]) -> IResult<&[u8], TableContentsSource> {
 fn table_element_list(i: &[u8]) -> IResult<&[u8], TableElementList> {
     map(
         delimited(
-            tuple((tag("("), multispace0)),
-            separated_list1(tuple((multispace0, tag(","), multispace0)), table_element),
-            tuple((multispace0, tag(")"))),
+            tuple((left_paren, multispace0)),
+            separated_list1(tuple((multispace0, comma, multispace0)), table_element),
+            tuple((multispace0, right_paren)),
         ),
         |list| TableElementList::new(&list),
     )(i)

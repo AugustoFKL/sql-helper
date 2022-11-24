@@ -65,7 +65,7 @@ impl fmt::Display for Ident {
 
 #[must_use]
 pub fn is_sql_identifier(chr: u8) -> bool {
-    is_alphanumeric(chr) || chr == b'_' || chr == b'@'
+    is_alphanumeric(chr) || chr == b'_'
 }
 
 #[must_use]

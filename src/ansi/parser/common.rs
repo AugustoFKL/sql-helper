@@ -1,5 +1,5 @@
 use nom::branch::alt;
-use nom::bytes::complete::{tag, tag_no_case};
+use nom::bytes::complete::tag_no_case;
 use nom::character::complete::{multispace0, multispace1};
 use nom::combinator::{map, opt, peek};
 use nom::multi::separated_list1;
@@ -12,7 +12,7 @@ use crate::ansi::ast::common::{
     TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
-use crate::common::parsers::ident;
+use crate::common::parsers::{comma, ident, period};
 
 /// Parses a schema name [(1)](SchemaName).
 ///
@@ -22,7 +22,7 @@ use crate::common::parsers::ident;
 pub fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
     alt((
         map(
-            tuple((terminated(ident, tag(".")), ident)),
+            tuple((terminated(ident, period), ident)),
             |(catalog, schema)| SchemaName::new(Some(&catalog), &schema),
         ),
         map(ident, |schema| SchemaName::new(None, &schema)),
@@ -36,7 +36,7 @@ pub fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
 /// function call will fail.
 pub fn table_name(i: &[u8]) -> IResult<&[u8], TableName> {
     let (i, (opt_local_or_schema, name)) =
-        tuple((opt(terminated(local_or_schema_qualifier, tag("."))), ident))(i)?;
+        tuple((opt(terminated(local_or_schema_qualifier, period)), ident))(i)?;
 
     let mut table_name = TableName::new(&name);
     if let Some(local_or_schema) = opt_local_or_schema {
@@ -73,15 +73,14 @@ pub fn schema_for_qualified_table_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
     alt((
         map(
             terminated(
-                tuple((terminated(ident, tag(".")), ident)),
-                peek(tuple((tag("."), ident))),
+                tuple((terminated(ident, period), ident)),
+                peek(tuple((period, ident))),
             ),
             |(catalog, schema)| SchemaName::new(Some(&catalog), &schema),
         ),
-        map(
-            terminated(ident, peek(tuple((tag("."), ident)))),
-            |schema| SchemaName::new(None, &schema),
-        ),
+        map(terminated(ident, peek(tuple((period, ident)))), |schema| {
+            SchemaName::new(None, &schema)
+        }),
     ))(i)
 }
 
@@ -212,7 +211,7 @@ pub fn match_type(i: &[u8]) -> IResult<&[u8], MatchType> {
 /// parsed, this function call will return an error.
 pub fn column_name_list(i: &[u8]) -> IResult<&[u8], ColumnNameList> {
     map(
-        separated_list1(tuple((multispace0, tag(","), multispace0)), ident),
+        separated_list1(tuple((multispace0, comma, multispace0)), ident),
         |list| ColumnNameList::new(&list),
     )(i)
 }

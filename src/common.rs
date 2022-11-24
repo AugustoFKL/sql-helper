@@ -2,6 +2,7 @@ use std::fmt;
 
 use nom::character::is_alphanumeric;
 
+pub mod ast;
 pub mod parsers;
 
 /// SQL identifiers [(1)].

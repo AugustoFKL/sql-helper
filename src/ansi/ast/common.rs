@@ -152,7 +152,7 @@ pub enum MatchType {
     Simple,
 }
 
-/// Column name list
+/// Column name list.
 ///
 /// # Supported syntax
 /// ```plaintext
@@ -160,7 +160,20 @@ pub enum MatchType {
 /// ```
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct ColumnNameList {
+    /// Column name list.
     column_names: Vec<Ident>,
+}
+
+/// Referenced period specification.
+///
+/// # Supported syntax
+/// ```plaintext
+/// PERIOD <application time period name>
+/// ```
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct ReferencedPeriodSpecification {
+    /// `<application time period name>`.
+    period_name: Ident,
 }
 
 impl SchemaName {
@@ -405,6 +418,27 @@ impl ColumnNameList {
 impl fmt::Display for ColumnNameList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", display_comma_separated(self.column_names()))?;
+        Ok(())
+    }
+}
+
+impl ReferencedPeriodSpecification {
+    #[must_use]
+    pub fn new(period_name: &Ident) -> Self {
+        Self {
+            period_name: period_name.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn period_name(&self) -> &Ident {
+        &self.period_name
+    }
+}
+
+impl fmt::Display for ReferencedPeriodSpecification {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PERIOD {}", self.period_name())?;
         Ok(())
     }
 }

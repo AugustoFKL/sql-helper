@@ -8,8 +8,8 @@ use nom::IResult;
 
 use crate::ansi::ast::common::{
     ColumnDefinition, ColumnNameList, DeleteRule, DropBehavior, LocalOrSchemaQualifier,
-    LocalQualifier, MatchType, ReferentialAction, ReferentialTriggeredAction, SchemaName,
-    TableName, UpdateRule,
+    LocalQualifier, MatchType, ReferencedPeriodSpecification, ReferentialAction,
+    ReferentialTriggeredAction, SchemaName, TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
 use crate::common::parsers::{comma, ident, period};
@@ -216,6 +216,19 @@ pub fn column_name_list(i: &[u8]) -> IResult<&[u8], ColumnNameList> {
     )(i)
 }
 
+/// Parses a referenced period specification
+/// [(1)](ReferencedPeriodSpecification).
+///
+/// # Errors
+/// If the input is not valid for a referenced period specification, this
+/// function call will return an error.
+pub fn referenced_period_specification(i: &[u8]) -> IResult<&[u8], ReferencedPeriodSpecification> {
+    map(
+        preceded(tuple((tag_no_case("PERIOD"), multispace1)), ident),
+        |period_name| ReferencedPeriodSpecification::new(&period_name),
+    )(i)
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_str_eq;
@@ -314,5 +327,17 @@ mod tests {
     #[should_panic]
     fn parse_empty_column_name_list() {
         column_name_list(b"").unwrap();
+    }
+
+    #[test]
+    fn parse_referenced_period_specification() {
+        let input = "PERIOD name_1";
+        assert_str_eq!(
+            input,
+            referenced_period_specification(input.as_ref())
+                .unwrap()
+                .1
+                .to_string()
+        );
     }
 }

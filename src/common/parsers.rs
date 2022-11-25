@@ -478,3 +478,44 @@ pub fn sql_special_character(i: &[u8]) -> IResult<&[u8], SqlSpecialCharacter> {
         )),
     ))(i)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::common::parsers::sql_special_character;
+    use pretty_assertions::assert_str_eq;
+    use test_case::test_case;
+
+    #[test_case(" "; "space")]
+    #[test_case(r#"""#; "double quote")]
+    #[test_case("%"; "percentage")]
+    #[test_case("&"; "ampersand")]
+    #[test_case("'"; "quote")]
+    #[test_case("("; "left paren")]
+    #[test_case(")"; "right paren")]
+    #[test_case("*"; "asterisk")]
+    #[test_case("+"; "plus sign")]
+    #[test_case(","; "comma")]
+    #[test_case("-"; "minus sign")]
+    #[test_case("."; "period")]
+    #[test_case("/"; "solidus")]
+    #[test_case(":"; "colon")]
+    #[test_case(";"; "semicolon")]
+    #[test_case("<"; "less than operator")]
+    #[test_case("="; "equals operator")]
+    #[test_case(">"; "greater than operator")]
+    #[test_case("?"; "question mark")]
+    #[test_case("["; "left bracket")]
+    #[test_case("]"; "right bracket")]
+    #[test_case("^"; "circumflex")]
+    #[test_case("_"; "underscore")]
+    #[test_case("|"; "vertical bar")]
+    #[test_case("{"; "left brace")]
+    #[test_case("}"; "right brace")]
+    #[test_case("$"; "dollar sign")]
+    pub fn parse_special_characters(input: &str) {
+        assert_str_eq!(
+            input,
+            sql_special_character(input.as_ref()).unwrap().1.to_string()
+        );
+    }
+}

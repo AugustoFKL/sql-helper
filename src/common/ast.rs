@@ -89,8 +89,6 @@ pub enum SqlSpecialCharacter {
     RightBrace,
     /// `<dollar sign>`.
     DollarSign,
-    /// `<apostrophe>`.
-    Apostrophe,
 }
 
 impl fmt::Display for SqlSpecialCharacter {
@@ -100,7 +98,7 @@ impl fmt::Display for SqlSpecialCharacter {
             Self::DoubleQuote => write!(f, "\"")?,
             Self::Percent => write!(f, "%")?,
             Self::Ampersand => write!(f, "&")?,
-            Self::Quote | Self::Apostrophe => write!(f, "'")?,
+            Self::Quote => write!(f, "'")?,
             Self::LeftParen => write!(f, "(")?,
             Self::RightParen => write!(f, ")")?,
             Self::Asterisk => write!(f, "*")?,

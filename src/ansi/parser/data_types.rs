@@ -9,7 +9,8 @@ use crate::ansi::ast::data_types::{
     CharLengthUnits, CharacterLargeObjectLength, CharacterLength, DataType, ExactNumberInfo,
     LargeObjectLength, Multiplier, WithOrWithoutTimeZone,
 };
-use crate::common::parsers::{comma, delimited_u32, left_paren, right_paren};
+use crate::common::parsers::delimited_u32;
+use crate::common::tokens::{comma, left_paren, right_paren};
 
 /// Parses `ANSI` data type [(1)].
 ///

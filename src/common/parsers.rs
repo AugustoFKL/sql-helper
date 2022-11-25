@@ -3,10 +3,17 @@ use nom::bytes::complete::{tag, take_while1};
 use nom::character::complete;
 use nom::character::complete::{alpha1, line_ending, multispace0};
 use nom::combinator::{eof, map, peek};
+use nom::error::{ErrorKind, ParseError};
 use nom::sequence::{delimited, tuple};
-use nom::IResult;
+use nom::{AsChar, Compare, IResult, InputTake, InputTakeAtPosition, Parser};
 
 use crate::common::ast::SqlSpecialCharacter;
+use crate::common::tokens::{
+    ampersand, asterisk, circumflex, colon, comma, dollar_sign, double_quote, equals_operator,
+    greater_than_operator, is_whitespace, left_brace, left_bracket, left_paren, less_than_operator,
+    minus_sign, percent, period, plus_sign, question_mark, quote, right_brace, right_bracket,
+    right_paren, semicolon, solidus, space, underscore, vertical_bar,
+};
 use crate::common::{is_sql_identifier, Ident, QuoteStyle};
 
 /// Parse a terminator that ends a SQL statement, returning the remaining
@@ -66,231 +73,367 @@ pub fn delimited_u32(i: &[u8]) -> IResult<&[u8], u32> {
     )(i)
 }
 
-/// Parses a space character.
+/// Parses zero or more whitespace characters.
 ///
 /// # Errors
-/// If the next character is not a space, this function call will fail.
-pub fn space(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag(" ")(i)
+/// This function should not fail, but as the parser can fail, this function let
+/// the upstream decide what to do with this possible failure.
+///
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::IResult;
+/// use sql_helper::common::parsers::whitespace0;
+///
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     whitespace0(s)
+/// }
+///
+/// assert_eq!(parser(" \t\n\r     21c"), Ok(("21c", " \t\n\r     ")));
+/// assert_eq!(parser("Z21c"), Ok(("Z21c", "")));
+/// assert_eq!(parser(""), Ok(("", "")));
+/// ```
+#[allow(clippy::needless_pass_by_value)]
+pub fn whitespace0<T, E: ParseError<T>>(input: T) -> IResult<T, T, E>
+where
+    T: InputTakeAtPosition,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    input.split_at_position_complete(|item| {
+        let c = item.as_char();
+        !is_whitespace(c)
+    })
 }
 
-/// Parses a double quote character.
+/// Parses one or more whitespace characters.
 ///
 /// # Errors
-/// If the next character is not a double quote, this function call will fail.
-pub fn double_quote(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("\"")(i)
+/// This function will fail if there's no whitespace characters identified.
+///
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::error::{Error, ErrorKind};
+/// use nom::Err;
+/// use nom::IResult;
+/// use sql_helper::common::parsers::whitespace1;
+///
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     whitespace1(s)
+/// }
+///
+/// assert_eq!(parser(" \t\n\r     21c"), Ok(("21c", " \t\n\r     ")));
+/// assert_eq!(parser(" Z21c"), Ok(("Z21c", " ")));
+/// assert_eq!(
+///     parser("Z21c"),
+///     Err(Err::Error(Error::new("Z21c", ErrorKind::MultiSpace)))
+/// );
+/// assert_eq!(
+///     parser(""),
+///     Err(Err::Error(Error::new("", ErrorKind::MultiSpace)))
+/// );
+/// ```
+#[allow(clippy::needless_pass_by_value)]
+pub fn whitespace1<T, E: ParseError<T>>(input: T) -> IResult<T, T, E>
+where
+    T: InputTakeAtPosition,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    input.split_at_position1_complete(
+        |item| {
+            let c = item.as_char();
+            !is_whitespace(c)
+        },
+        ErrorKind::MultiSpace,
+    )
 }
 
-/// Parses a percent character.
+/// A combinator that takes zero or more leading and trailing whitespaces,
+/// returning the result of the received parser.
 ///
 /// # Errors
-/// If the next character is not a percent, this function call will fail.
-pub fn percent(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("%")(i)
+/// If the received parser fails, this function call will return an error.
+///
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::error::{Error, ErrorKind};
+/// use nom::Err;
+/// use nom::IResult;
+/// use sql_helper::common::parsers::delimited_ws0;
+///
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     delimited_ws0(tag_no_case("Potato"))(s)
+/// }
+///
+/// assert_eq!(parser(" \t\n\r     Potato    "), Ok(("", "Potato")));
+/// assert_eq!(parser(" Potato"), Ok(("", "Potato")));
+/// assert_eq!(parser("Potato "), Ok(("", "Potato")));
+/// assert_eq!(parser("Potato"), Ok(("", "Potato")));
+/// assert_eq!(
+///     parser("(  Potato"),
+///     Err(Err::Error(Error::new("(  Potato", ErrorKind::Tag)))
+/// );
+/// ```
+pub fn delimited_ws0<T, O1, E: ParseError<T>, F>(mut first: F) -> impl FnMut(T) -> IResult<T, O1, E>
+where
+    F: Parser<T, O1, E>,
+    T: InputTakeAtPosition,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    move |i: T| {
+        let (i, _) = whitespace0(i)?;
+        let (i, o1) = first.parse(i)?;
+        let (i, _) = whitespace0(i)?;
+        Ok((i, o1))
+    }
 }
 
-/// Parses an ampersand character.
+/// A combinator that takes zero or more leading and whitespaces, returning the
+/// result of the received parser.
 ///
 /// # Errors
-/// If the next character is not an ampersand, this function call will fail.
-pub fn ampersand(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("&")(i)
+/// If the received parser fails, this function call will return an error.
+///
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::error::{Error, ErrorKind};
+/// use nom::Err;
+/// use nom::IResult;
+/// use sql_helper::common::parsers::preceded_ws0;
+///
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     preceded_ws0(tag_no_case("Potato"))(s)
+/// }
+///
+/// assert_eq!(parser(" \t\n\r     Potato    "), Ok(("    ", "Potato")));
+/// assert_eq!(parser(" Potato"), Ok(("", "Potato")));
+/// assert_eq!(parser("Potato "), Ok((" ", "Potato")));
+/// assert_eq!(parser("Potato"), Ok(("", "Potato")));
+/// assert_eq!(
+///     parser("(  Potato"),
+///     Err(Err::Error(Error::new("(  Potato", ErrorKind::Tag)))
+/// );
+/// ```
+pub fn preceded_ws0<T, O1, E: ParseError<T>, F>(mut parser: F) -> impl FnMut(T) -> IResult<T, O1, E>
+where
+    F: Parser<T, O1, E>,
+    T: InputTakeAtPosition,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    move |i: T| {
+        let (i, _) = whitespace0(i)?;
+        let (i, o1) = parser.parse(i)?;
+        Ok((i, o1))
+    }
 }
 
-/// Parses a quote character.
+/// A combinator that takes zero or more leading and whitespaces, returning the
+/// result of the received parser.
 ///
 /// # Errors
-/// If the next character is not a quote, this function call will fail.
-pub fn quote(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("'")(i)
+/// If the received parser fails, this function call will return an error.
+///
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::error::{Error, ErrorKind};
+/// use nom::Err;
+/// use nom::IResult;
+/// use sql_helper::common::parsers::terminated_ws0;
+///
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     terminated_ws0(tag_no_case("Potato"))(s)
+/// }
+///
+/// assert_eq!(parser("Potato    "), Ok(("", "Potato")));
+/// assert_eq!(parser("Potato  \n\r\t"), Ok(("", "Potato")));
+/// assert_eq!(parser("Potato"), Ok(("", "Potato")));
+/// assert_eq!(
+///     parser(" Potato"),
+///     Err(Err::Error(Error::new(" Potato", ErrorKind::Tag)))
+/// );
+/// ```
+pub fn terminated_ws0<T, O1, E: ParseError<T>, F>(
+    mut parser: F,
+) -> impl FnMut(T) -> IResult<T, O1, E>
+where
+    F: Parser<T, O1, E>,
+    T: InputTakeAtPosition,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    move |i: T| {
+        let (i, o1) = parser.parse(i)?;
+        let (i, _) = whitespace0(i)?;
+        Ok((i, o1))
+    }
 }
 
-/// Parses a left paren character.
+/// A combinator that takes one or more leading and trailing whitespaces,
+/// returning the result of the received parser.
 ///
 /// # Errors
-/// If the next character is not a left paren, this function call will fail.
-pub fn left_paren(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("(")(i)
+/// If the received parser fails, or there are no trailing and/or leading white
+/// spaces, this function call will return an error.
+///
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::error::{Error, ErrorKind};
+/// use nom::Err;
+/// use nom::IResult;
+/// use sql_helper::common::parsers::delimited_ws1;
+///
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     delimited_ws1(tag_no_case("Potato"))(s)
+/// }
+///
+/// assert_eq!(parser(" \t\n\r     Potato    "), Ok(("", "Potato")));
+/// assert_eq!(
+///     parser(" Potato"),
+///     Err(Err::Error(Error::new("", ErrorKind::MultiSpace)))
+/// );
+/// assert_eq!(
+///     parser("Potato "),
+///     Err(Err::Error(Error::new("Potato ", ErrorKind::MultiSpace)))
+/// );
+/// assert_eq!(
+///     parser("Potato"),
+///     Err(Err::Error(Error::new("Potato", ErrorKind::MultiSpace)))
+/// );
+/// ```
+pub fn delimited_ws1<T, O1, E: ParseError<T>, F>(mut first: F) -> impl FnMut(T) -> IResult<T, O1, E>
+where
+    F: Parser<T, O1, E>,
+    T: InputTakeAtPosition,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    move |i: T| {
+        let (i, _) = whitespace1(i)?;
+        let (i, o1) = first.parse(i)?;
+        let (i, _) = whitespace1(i)?;
+        Ok((i, o1))
+    }
 }
 
-/// Parses a right paren character.
+/// A combinator that takes one or more leading whitespaces, returning the
+/// result of the received parser.
 ///
 /// # Errors
-/// If the next character is not a right paren, this function call will fail.
-pub fn right_paren(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag(")")(i)
+/// If the received parser fails, or there are no leading white spaces, this
+/// function call will return an error.
+///
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::error::{Error, ErrorKind};
+/// use nom::Err;
+/// use nom::IResult;
+/// use sql_helper::common::parsers::preceded_ws1;
+///
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     preceded_ws1(tag_no_case("Potato"))(s)
+/// }
+///
+/// assert_eq!(parser(" \t\n\r     Potato    "), Ok(("    ", "Potato")));
+/// assert_eq!(parser(" Potato"), Ok(("", "Potato")));
+/// assert_eq!(
+///     parser("Potato "),
+///     Err(Err::Error(Error::new("Potato ", ErrorKind::MultiSpace)))
+/// );
+/// assert_eq!(
+///     parser("Potato"),
+///     Err(Err::Error(Error::new("Potato", ErrorKind::MultiSpace)))
+/// );
+/// ```
+pub fn preceded_ws1<T, O1, E: ParseError<T>, F>(mut parser: F) -> impl FnMut(T) -> IResult<T, O1, E>
+where
+    F: Parser<T, O1, E>,
+    T: InputTakeAtPosition,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    move |i: T| {
+        let (i, _) = whitespace1(i)?;
+        let (i, o1) = parser.parse(i)?;
+        Ok((i, o1))
+    }
 }
 
-/// Parses an asterisk character.
+/// A combinator that takes one or more trailing whitespaces, returning the
+/// result of the received parser.
 ///
 /// # Errors
-/// If the next character is not an asterisk, this function call will fail.
-pub fn asterisk(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("*")(i)
+/// If the received parser fails, or there are no trailing white spaces, this
+/// function call will return an error.
+///
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::error::{Error, ErrorKind};
+/// use nom::Err;
+/// use nom::IResult;
+/// use sql_helper::common::parsers::terminated_ws1;
+///
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     terminated_ws1(tag_no_case("Potato"))(s)
+/// }
+/// assert_eq!(parser("Potato Name"), Ok(("Name", "Potato")));
+/// assert_eq!(parser("Potato \t\r"), Ok(("", "Potato")));
+/// assert_eq!(
+///     parser("Potato"),
+///     Err(Err::Error(Error::new("", ErrorKind::MultiSpace)))
+/// );
+/// ```
+pub fn terminated_ws1<T, O1, E: ParseError<T>, F>(
+    mut parser: F,
+) -> impl FnMut(T) -> IResult<T, O1, E>
+where
+    F: Parser<T, O1, E>,
+    T: InputTakeAtPosition,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    move |i: T| {
+        let (i, o1) = parser.parse(i)?;
+        let (i, _) = whitespace1(i)?;
+        Ok((i, o1))
+    }
 }
 
-/// Parses a plus sign character.
+/// A combinator that takes zero or more leading and trailing whitespaces for a
+/// paren delimited parser (or group of parsers), and return the parsers result.
 ///
 /// # Errors
-/// If the next character is not a plus sign, this function call will fail.
-pub fn plus_sign(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("+")(i)
-}
-
-/// Parses a comma character.
+/// If the received parser fails, or there aren't any delimiter parens, this
+/// function call will return an error.
 ///
-/// # Errors
-/// If the next character is not a comma, this function call will fail.
-pub fn comma(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag(",")(i)
-}
-
-/// Parses a minus sign character.
-///
-/// # Errors
-/// If the next character is not a minus sign, this function call will fail.
-pub fn minus_sign(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("-")(i)
-}
-
-/// Parses a period character.
-///
-/// # Errors
-/// If the next character is not a period, this function call will fail.
-pub fn period(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag(".")(i)
-}
-
-/// Parses a solidus character.
-///
-/// # Errors
-/// If the next character is not a solidus, this function call will fail.
-pub fn solidus(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("/")(i)
-}
-
-/// Parses a colon character.
-///
-/// # Errors
-/// If the next character is not a colon, this function call will fail.
-pub fn colon(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag(":")(i)
-}
-
-/// Parses a semicolon character.
-///
-/// # Errors
-/// If the next character is not a semicolon, this function call will fail.
-pub fn semicolon(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag(";")(i)
-}
-
-/// Parses a less than operator character.
-///
-/// # Errors
-/// If the next character is not a less than operator, this function call will
-/// fail.
-pub fn less_than_operator(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("<")(i)
-}
-
-/// Parses an equals operator character.
-///
-/// # Errors
-/// If the next character is not an equals operator, this function call will
-/// fail.
-pub fn equals_operator(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("=")(i)
-}
-
-/// Parses a greater than operator character.
-///
-/// # Errors
-/// If the next character is not a greater than operator, this function call
-/// will fail.
-pub fn greater_than_operator(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag(">")(i)
-}
-
-/// Parses a question mark character.
-///
-/// # Errors
-/// If the next character is not a question mark, this function call will fail.
-pub fn question_mark(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("?")(i)
-}
-
-/// Parses a left bracket character.
-///
-/// # Errors
-/// If the next character is not a left bracket, this function call will fail.
-pub fn left_bracket(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("[")(i)
-}
-
-/// Parses a right bracket character.
-///
-/// # Errors
-/// If the next character is not a right bracket, this function call will fail.
-pub fn right_bracket(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("]")(i)
-}
-
-/// Parses a circumflex character.
-///
-/// # Errors
-/// If the next character is not a circumflex, this function call will fail.
-pub fn circumflex(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("^")(i)
-}
-
-/// Parses an underscore character.
-///
-/// # Errors
-/// If the next character is not an underscore, this function call will fail.
-pub fn underscore(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("_")(i)
-}
-
-/// Parses an vertical bar character.
-///
-/// # Errors
-/// If the next character is not an vertical bar, this function call will fail.
-pub fn vertical_bar(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("|")(i)
-}
-
-/// Parses an left brace character.
-///
-/// # Errors
-/// If the next character is not a left brace, this function call will fail.
-pub fn left_brace(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("{")(i)
-}
-
-/// Parses a right brace character.
-///
-/// # Errors
-/// If the next character is not a right brace, this function call will fail.
-pub fn right_brace(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("}")(i)
-}
-
-/// Parses a dollar sign character.
-///
-/// # Errors
-/// If the next character is not a dollar sign, this function call will fail.
-pub fn dollar_sign(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("$")(i)
-}
-
-/// Parses an apostrophe character.
-///
-/// # Errors
-/// If the next character is not an apostrophe, this function call will fail.
-pub fn apostrophe(i: &[u8]) -> IResult<&[u8], &[u8]> {
-    tag("'")(i)
+/// # Examples
+/// ```rust
+/// use nom::bytes::complete::tag_no_case;
+/// use nom::error::{Error, ErrorKind};
+/// use nom::IResult;
+/// use sql_helper::common::parsers::paren_delimited;
+/// fn parser(s: &str) -> IResult<&str, &str> {
+///     paren_delimited(tag_no_case("Potato"))(s)
+/// }
+/// assert_eq!(parser("(Potato) Name"), Ok((" Name", "Potato")));
+/// assert_eq!(parser("( Potato) Name"), Ok((" Name", "Potato")));
+/// assert_eq!(parser("(Potato ) Name"), Ok((" Name", "Potato")));
+/// assert_eq!(parser("(Potato) Name"), Ok((" Name", "Potato")));
+/// ```
+pub fn paren_delimited<T, O1, E, F>(mut parser: F) -> impl FnMut(T) -> IResult<T, O1, E>
+where
+    E: ParseError<T>,
+    F: Parser<T, O1, E>,
+    for<'a> T: InputTakeAtPosition + Clone + InputTake + Compare<&'a [u8]>,
+    <T as InputTakeAtPosition>::Item: AsChar,
+{
+    move |i: T| {
+        let (i, _) = terminated_ws0(left_paren)(i)?;
+        let (i, o1) = parser.parse(i)?;
+        let (i, _) = preceded_ws0(right_paren)(i)?;
+        Ok((i, o1))
+    }
 }
 
 /// Parses a SQL special character.
@@ -332,47 +475,6 @@ pub fn sql_special_character(i: &[u8]) -> IResult<&[u8], SqlSpecialCharacter> {
             map(left_brace, |_| SqlSpecialCharacter::LeftBrace),
             map(right_brace, |_| SqlSpecialCharacter::RightBrace),
             map(dollar_sign, |_| SqlSpecialCharacter::DollarSign),
-            map(apostrophe, |_| SqlSpecialCharacter::Apostrophe),
         )),
     ))(i)
-}
-#[cfg(test)]
-mod tests {
-    use crate::common::parsers::sql_special_character;
-    use pretty_assertions::assert_str_eq;
-    use test_case::test_case;
-
-    #[test_case(" "; "space")]
-    #[test_case(r#"""#; "double quote")]
-    #[test_case("%"; "percentage")]
-    #[test_case("&"; "ampersand")]
-    #[test_case("'"; "quote")]
-    #[test_case("("; "left paren")]
-    #[test_case(")"; "right paren")]
-    #[test_case("*"; "asterisk")]
-    #[test_case("+"; "plus sign")]
-    #[test_case(","; "comma")]
-    #[test_case("-"; "minus sign")]
-    #[test_case("."; "period")]
-    #[test_case("/"; "solidus")]
-    #[test_case(":"; "colon")]
-    #[test_case(";"; "semicolon")]
-    #[test_case("<"; "less than operator")]
-    #[test_case("="; "equals operator")]
-    #[test_case(">"; "greater than operator")]
-    #[test_case("?"; "question mark")]
-    #[test_case("["; "left bracket")]
-    #[test_case("]"; "right bracket")]
-    #[test_case("^"; "circumflex")]
-    #[test_case("_"; "underscore")]
-    #[test_case("|"; "vertical bar")]
-    #[test_case("{"; "left brace")]
-    #[test_case("}"; "right brace")]
-    #[test_case("$"; "dollar sign")]
-    pub fn parse_special_characters(input: &str) {
-        assert_str_eq!(
-            input,
-            sql_special_character(input.as_ref()).unwrap().1.to_string()
-        );
-    }
 }

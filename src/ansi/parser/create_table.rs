@@ -10,7 +10,8 @@ use crate::ansi::ast::create_table::{
     CreateTable, TableContentsSource, TableElement, TableElementList, TableScope,
 };
 use crate::ansi::parser::common::{column_definition, table_name};
-use crate::common::parsers::{comma, left_paren, right_paren, statement_terminator};
+use crate::common::parsers::statement_terminator;
+use crate::common::tokens::{comma, left_paren, right_paren};
 
 /// Parses a `CREATE TABLE` statement.
 ///

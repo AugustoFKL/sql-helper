@@ -4,6 +4,7 @@ use nom::character::is_alphanumeric;
 
 pub mod ast;
 pub mod parsers;
+pub mod tokens;
 
 /// SQL identifiers [(1)].
 ///

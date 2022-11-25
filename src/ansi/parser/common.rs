@@ -12,7 +12,8 @@ use crate::ansi::ast::common::{
     TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
-use crate::common::parsers::{comma, ident, period};
+use crate::common::parsers::ident;
+use crate::common::tokens::{comma, period};
 
 /// Parses a schema name [(1)](SchemaName).
 ///

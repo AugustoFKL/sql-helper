@@ -28,12 +28,12 @@ impl DropSchema {
     }
 
     #[must_use]
-    pub fn schema_name(&self) -> &SchemaName {
+    pub const fn schema_name(&self) -> &SchemaName {
         &self.schema_name
     }
 
     #[must_use]
-    pub fn drop_behavior(&self) -> DropBehavior {
+    pub const fn drop_behavior(&self) -> DropBehavior {
         self.drop_behavior
     }
 }

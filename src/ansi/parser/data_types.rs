@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_character_string() {
+    fn parse_character_varying() {
         assert_expected_data_type!("CHARACTER VARYING", DataType::CharacterVarying(None));
 
         assert_expected_data_type!(
@@ -317,7 +317,10 @@ mod tests {
                 *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
             ))
         );
+    }
 
+    #[test]
+    fn parse_char_varying() {
         assert_expected_data_type!("CHAR VARYING", DataType::CharVarying(None));
 
         assert_expected_data_type!(
@@ -338,7 +341,10 @@ mod tests {
                 *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
             ))
         );
+    }
 
+    #[test]
+    fn parse_character() {
         assert_expected_data_type!("CHARACTER", DataType::Character(None));
 
         assert_expected_data_type!(
@@ -359,7 +365,10 @@ mod tests {
                 *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
             ))
         );
+    }
 
+    #[test]
+    fn parse_varchar() {
         assert_expected_data_type!("VARCHAR", DataType::Varchar(None));
 
         assert_expected_data_type!(
@@ -380,7 +389,10 @@ mod tests {
                 *CharacterLength::new(20).with_units(CharLengthUnits::Characters)
             ))
         );
+    }
 
+    #[test]
+    fn parse_char() {
         assert_expected_data_type!("CHAR", DataType::Char(None));
 
         assert_expected_data_type!("CHAR(20)", DataType::Char(Some(CharacterLength::new(20))));
@@ -401,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_character_large_object_types_character_large_object() {
+    fn parse_character_large_object() {
         assert_expected_data_type!(
             "CHARACTER LARGE OBJECT",
             DataType::CharacterLargeObject(None)
@@ -423,14 +435,6 @@ mod tests {
         );
 
         assert_expected_data_type!(
-            "CHARACTER LARGE OBJECT(20 OCTETS)",
-            DataType::CharacterLargeObject(Some(
-                *CharacterLargeObjectLength::new(LargeObjectLength::new(20))
-                    .with_units(CharLengthUnits::Octets)
-            ))
-        );
-
-        assert_expected_data_type!(
             "CHARACTER LARGE OBJECT(20K)",
             DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
                 *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
@@ -445,34 +449,6 @@ mod tests {
                 )
                 .with_units(CharLengthUnits::Characters)
             ))
-        );
-
-        assert_expected_data_type!(
-            "CHARACTER LARGE OBJECT(20M)",
-            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
-                *LargeObjectLength::new(20).with_multiplier(Multiplier::M)
-            )))
-        );
-
-        assert_expected_data_type!(
-            "CHARACTER LARGE OBJECT(20G)",
-            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
-                *LargeObjectLength::new(20).with_multiplier(Multiplier::G)
-            )))
-        );
-
-        assert_expected_data_type!(
-            "CHARACTER LARGE OBJECT(20T)",
-            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
-                *LargeObjectLength::new(20).with_multiplier(Multiplier::T)
-            )))
-        );
-
-        assert_expected_data_type!(
-            "CHARACTER LARGE OBJECT(20P)",
-            DataType::CharacterLargeObject(Some(CharacterLargeObjectLength::new(
-                *LargeObjectLength::new(20).with_multiplier(Multiplier::P)
-            )))
         );
     }
 
@@ -551,13 +527,25 @@ mod tests {
     }
 
     #[test]
-    fn parse_binary_string_type() {
+    fn parse_binary() {
         assert_expected_data_type!("BINARY", DataType::Binary(None));
         assert_expected_data_type!("BINARY(20)", DataType::Binary(Some(20)));
+    }
+
+    #[test]
+    fn parse_binary_varying() {
         assert_expected_data_type!("BINARY VARYING", DataType::BinaryVarying(None));
         assert_expected_data_type!("BINARY VARYING(20)", DataType::BinaryVarying(Some(20)));
+    }
+
+    #[test]
+    fn parse_varbinary() {
         assert_expected_data_type!("VARBINARY", DataType::Varbinary(None));
         assert_expected_data_type!("VARBINARY(20)", DataType::Varbinary(Some(20)));
+    }
+
+    #[test]
+    fn parse_binary_large_object() {
         assert_expected_data_type!("BINARY LARGE OBJECT", DataType::BinaryLargeObject(None));
         assert_expected_data_type!(
             "BINARY LARGE OBJECT(20)",
@@ -569,6 +557,10 @@ mod tests {
                 *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
             ))
         );
+    }
+
+    #[test]
+    fn parse_blob() {
         assert_expected_data_type!("BLOB", DataType::Blob(None));
         assert_expected_data_type!("BLOB(20)", DataType::Blob(Some(LargeObjectLength::new(20))));
         assert_expected_data_type!(
@@ -580,7 +572,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_exact_numeric_type() {
+    fn parse_numeric() {
         assert_expected_data_type!("NUMERIC", DataType::Numeric(ExactNumberInfo::None));
         assert_expected_data_type!(
             "NUMERIC(20)",
@@ -590,6 +582,10 @@ mod tests {
             "NUMERIC(30, 2)",
             DataType::Numeric(ExactNumberInfo::PrecisionAndScale(30, 2))
         );
+    }
+
+    #[test]
+    fn parse_decimal() {
         assert_expected_data_type!("DECIMAL", DataType::Decimal(ExactNumberInfo::None));
         assert_expected_data_type!(
             "DECIMAL(20)",
@@ -599,6 +595,10 @@ mod tests {
             "DECIMAL(30, 2)",
             DataType::Decimal(ExactNumberInfo::PrecisionAndScale(30, 2))
         );
+    }
+
+    #[test]
+    fn parse_dec() {
         assert_expected_data_type!("DEC", DataType::Dec(ExactNumberInfo::None));
         assert_expected_data_type!("DEC(20)", DataType::Dec(ExactNumberInfo::Precision(20)));
         assert_expected_data_type!(
@@ -612,9 +612,40 @@ mod tests {
     }
 
     #[test]
-    fn parse_approximate_numeric_type() {
+    fn parse_smallint() {
+        assert_expected_data_type!("SMALLINT", DataType::Smallint);
+    }
+
+    #[test]
+    fn parse_integer() {
+        assert_expected_data_type!("INTEGER", DataType::Integer);
+        assert_expected_data_type!("INT", DataType::Int);
+        assert_expected_data_type!("BIGINT", DataType::Bigint);
+    }
+
+    #[test]
+    fn parse_int() {
+        assert_expected_data_type!("INT", DataType::Int);
+        assert_expected_data_type!("BIGINT", DataType::Bigint);
+    }
+
+    #[test]
+    fn parse_bigint() {
+        assert_expected_data_type!("BIGINT", DataType::Bigint);
+    }
+
+    #[test]
+    fn parse_float() {
         assert_expected_data_type!("FLOAT", DataType::Float);
+    }
+
+    #[test]
+    fn parse_real() {
         assert_expected_data_type!("REAL", DataType::Real);
+    }
+
+    #[test]
+    fn parse_double_precision() {
         assert_expected_data_type!("DOUBLE PRECISION", DataType::DoublePrecision);
     }
 
@@ -630,9 +661,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_datetime() {
+    fn parse_date() {
         assert_expected_data_type!("DATE", DataType::Date);
+    }
 
+    #[test]
+    fn parse_time() {
         assert_expected_data_type!("TIME", DataType::Time(None, WithOrWithoutTimeZone::None));
 
         assert_expected_data_type!(
@@ -659,7 +693,10 @@ mod tests {
             "TIME(20) WITHOUT TIME ZONE",
             DataType::Time(Some(20), WithOrWithoutTimeZone::WithoutTimeZone)
         );
+    }
 
+    #[test]
+    fn parse_timestamp() {
         assert_expected_data_type!(
             "TIMESTAMP",
             DataType::Timestamp(None, WithOrWithoutTimeZone::None)

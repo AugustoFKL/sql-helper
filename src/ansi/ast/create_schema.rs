@@ -49,7 +49,7 @@ impl CreateSchema {
     }
 
     #[must_use]
-    pub fn schema_name_clause(&self) -> &SchemaNameClause {
+    pub const fn schema_name_clause(&self) -> &SchemaNameClause {
         &self.schema_name_clause
     }
 }
@@ -64,13 +64,13 @@ impl fmt::Display for CreateSchema {
 impl fmt::Display for SchemaNameClause {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SchemaNameClause::Simple(schema_name) => {
+            Self::Simple(schema_name) => {
                 write!(f, "{schema_name}")?;
             }
-            SchemaNameClause::Authorization(authorization) => {
+            Self::Authorization(authorization) => {
                 write!(f, "AUTHORIZATION {authorization}")?;
             }
-            SchemaNameClause::NamedAuthorization(schema_name, authorization) => {
+            Self::NamedAuthorization(schema_name, authorization) => {
                 write!(f, "{schema_name} AUTHORIZATION {authorization}")?;
             }
         }

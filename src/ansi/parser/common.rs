@@ -216,12 +216,12 @@ pub fn column_name_list(i: &[u8]) -> IResult<&[u8], ColumnNameList> {
 ///
 /// # Examples
 /// ```rust
-/// use nom::error::{Error, ErrorKind};
-/// use nom::Err;
-/// use nom::IResult;
-/// use pretty_assertions::assert_str_eq;
-/// use sql_helper::ansi::ast::common::SystemVersioningClause;
-/// use sql_helper::ansi::parser::common::system_versioning_clause;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::Err;
+/// # use nom::IResult;
+/// # use pretty_assertions::assert_str_eq;
+/// # use sql_helper::ansi::ast::common::SystemVersioningClause;
+/// # use sql_helper::ansi::parser::common::system_versioning_clause;
 /// fn parser(i: &[u8]) -> IResult<&[u8], SystemVersioningClause> {
 ///     system_versioning_clause(i)
 /// }

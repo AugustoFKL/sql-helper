@@ -8,7 +8,7 @@ use nom::IResult;
 use crate::ansi::ast::common::{
     ColumnDefinition, ColumnNameList, DeleteRule, DropBehavior, LocalOrSchemaQualifier,
     LocalQualifier, MatchType, ReferentialAction, ReferentialTriggeredAction, SchemaName,
-    TableName, UpdateRule,
+    SystemVersioningClause, TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
 use crate::common::parsers::{delimited_ws0, ident, preceded_ws1, terminated_ws1};
@@ -206,6 +206,54 @@ pub fn column_name_list(i: &[u8]) -> IResult<&[u8], ColumnNameList> {
     map(separated_list1(delimited_ws0(comma), ident), |list| {
         ColumnNameList::new(&list)
     })(i)
+}
+
+/// Parses a system versioning clause [(1)](SystemVersioningClause).
+///
+/// # Errors
+/// If this function encounters any form of parser or other error, an error
+/// variant will be returned.
+///
+/// # Examples
+/// ```rust
+/// use nom::error::{Error, ErrorKind};
+/// use nom::Err;
+/// use nom::IResult;
+/// use pretty_assertions::assert_str_eq;
+/// use sql_helper::ansi::ast::common::SystemVersioningClause;
+/// use sql_helper::ansi::parser::common::system_versioning_clause;
+/// fn parser(i: &[u8]) -> IResult<&[u8], SystemVersioningClause> {
+///     system_versioning_clause(i)
+/// }
+///
+/// assert_eq!(
+///     parser(b"SYSTEM VERSIONING"),
+///     Ok((&b""[..], SystemVersioningClause {}))
+/// );
+/// assert_eq!(
+///     parser(b"SYSTEM"),
+///     Err(Err::Error(Error::new("".as_bytes(), ErrorKind::MultiSpace)))
+/// );
+/// assert_eq!(
+///     parser(b"VERSIONING"),
+///     Err(Err::Error(Error::new(
+///         "VERSIONING".as_bytes(),
+///         ErrorKind::Tag
+///     )))
+/// );
+/// assert_str_eq!(
+///     parser(b"SYSTEM VERSIONING").unwrap().1.to_string(),
+///     "SYSTEM VERSIONING"
+/// );
+/// ```
+pub fn system_versioning_clause(i: &[u8]) -> IResult<&[u8], SystemVersioningClause> {
+    map(
+        pair(
+            tag_no_case("SYSTEM"),
+            preceded_ws1(tag_no_case("VERSIONING")),
+        ),
+        |_| SystemVersioningClause {},
+    )(i)
 }
 
 #[cfg(test)]

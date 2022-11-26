@@ -1,17 +1,16 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
-use nom::character::complete::{multispace0, multispace1};
 use nom::combinator::{map, opt};
 use nom::multi::separated_list1;
-use nom::sequence::{delimited, preceded, tuple};
+use nom::sequence::{preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::ast::create_table::{
     CreateTable, TableContentsSource, TableElement, TableElementList, TableScope,
 };
 use crate::ansi::parser::common::{column_definition, table_name};
-use crate::common::parsers::statement_terminator;
-use crate::common::tokens::{comma, left_paren, right_paren};
+use crate::common::parsers::{delimited_ws0, paren_delimited, preceded_ws1, statement_terminator};
+use crate::common::tokens::comma;
 
 /// Parses a `CREATE TABLE` statement.
 ///
@@ -20,17 +19,14 @@ use crate::common::tokens::{comma, left_paren, right_paren};
 /// function call will fail. Check the create table statement documentation
 /// [(1)][`CreateTable`] for supported syntax.
 pub fn create_table(i: &[u8]) -> IResult<&[u8], CreateTable> {
-    let (i, (opt_table_scope, table_name, table_contents_source)) = tuple((
-        preceded(
-            tag_no_case("CREATE"),
-            opt(preceded(multispace1, table_scope)),
-        ),
-        preceded(
-            delimited(multispace1, tag_no_case("TABLE"), multispace1),
-            table_name,
-        ),
-        delimited(multispace1, table_contents_source, statement_terminator),
-    ))(i)?;
+    let (i, (opt_table_scope, table_name, table_contents_source)) = terminated(
+        tuple((
+            preceded(tag_no_case("CREATE"), opt(preceded_ws1(table_scope))),
+            preceded(preceded_ws1(tag_no_case("TABLE")), preceded_ws1(table_name)),
+            preceded_ws1(table_contents_source),
+        )),
+        statement_terminator,
+    )(i)?;
 
     let mut create_table = CreateTable::new(&table_name, &table_contents_source);
     if let Some(table_scope) = opt_table_scope {
@@ -56,11 +52,7 @@ fn table_contents_source(i: &[u8]) -> IResult<&[u8], TableContentsSource> {
 
 fn table_element_list(i: &[u8]) -> IResult<&[u8], TableElementList> {
     map(
-        delimited(
-            tuple((left_paren, multispace0)),
-            separated_list1(tuple((multispace0, comma, multispace0)), table_element),
-            tuple((multispace0, right_paren)),
-        ),
+        paren_delimited(separated_list1(delimited_ws0(comma), table_element)),
         |list| TableElementList::new(&list),
     )(i)
 }

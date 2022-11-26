@@ -1,16 +1,18 @@
 use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
-use nom::character::complete::{multispace0, multispace1, u32};
+use nom::character::complete::u32;
 use nom::combinator::{map, opt};
-use nom::sequence::{delimited, preceded, tuple};
+use nom::sequence::{pair, preceded, separated_pair, tuple};
 use nom::IResult;
 
 use crate::ansi::ast::data_types::{
     CharLengthUnits, CharacterLargeObjectLength, CharacterLength, DataType, ExactNumberInfo,
     LargeObjectLength, Multiplier, WithOrWithoutTimeZone,
 };
-use crate::common::parsers::delimited_u32;
-use crate::common::tokens::{comma, left_paren, right_paren};
+use crate::common::parsers::{
+    delimited_ws0, paren_delimited, preceded_ws0, preceded_ws1, terminated_ws0,
+};
+use crate::common::tokens::comma;
 
 /// Parses `ANSI` data type [(1)].
 ///
@@ -36,37 +38,31 @@ fn character_string(input: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         map(
             preceded(
-                tuple((tag_no_case("CHARACTER VARYING"), multispace0)),
+                terminated_ws0(tag_no_case("CHARACTER VARYING")),
                 opt_character_length,
             ),
             DataType::CharacterVarying,
         ),
         map(
             preceded(
-                tuple((tag_no_case("CHAR VARYING"), multispace0)),
+                terminated_ws0(tag_no_case("CHAR VARYING")),
                 opt_character_length,
             ),
             DataType::CharVarying,
         ),
         map(
             preceded(
-                tuple((tag_no_case("CHARACTER"), multispace0)),
+                terminated_ws0(tag_no_case("CHARACTER")),
                 opt_character_length,
             ),
             DataType::Character,
         ),
         map(
-            preceded(
-                tuple((tag_no_case("VARCHAR"), multispace0)),
-                opt_character_length,
-            ),
+            preceded(terminated_ws0(tag_no_case("VARCHAR")), opt_character_length),
             DataType::Varchar,
         ),
         map(
-            preceded(
-                tuple((tag_no_case("CHAR"), multispace0)),
-                opt_character_length,
-            ),
+            preceded(terminated_ws0(tag_no_case("CHAR")), opt_character_length),
             DataType::Char,
         ),
     ))(input)
@@ -77,33 +73,21 @@ fn character_large_object_types(input: &[u8]) -> IResult<&[u8], DataType> {
         map(
             preceded(
                 tag_no_case("CHARACTER LARGE OBJECT"),
-                opt(delimited(
-                    tuple((multispace0, left_paren, multispace0)),
-                    character_large_object_length,
-                    tuple((multispace0, right_paren)),
-                )),
+                opt(paren_delimited(character_large_object_length)),
             ),
             DataType::CharacterLargeObject,
         ),
         map(
             preceded(
                 tag_no_case("CHAR LARGE OBJECT"),
-                opt(delimited(
-                    tuple((multispace0, left_paren, multispace0)),
-                    character_large_object_length,
-                    tuple((multispace0, right_paren)),
-                )),
+                opt(paren_delimited(character_large_object_length)),
             ),
             DataType::CharLargeObject,
         ),
         map(
             preceded(
                 tag_no_case("CLOB"),
-                opt(delimited(
-                    tuple((multispace0, left_paren, multispace0)),
-                    character_large_object_length,
-                    tuple((multispace0, right_paren)),
-                )),
+                opt(paren_delimited(character_large_object_length)),
             ),
             DataType::Clob,
         ),
@@ -145,7 +129,7 @@ fn decimal_floating_point_type(i: &[u8]) -> IResult<&[u8], DataType> {
     map(
         preceded(
             tag_no_case("DECFLOAT"),
-            opt(preceded(multispace0, delimited_u32)),
+            opt(preceded_ws0(paren_delimited(u32))),
         ),
         DataType::DecFloat,
     )(i)
@@ -161,14 +145,14 @@ fn datetime_type(i: &[u8]) -> IResult<&[u8], DataType> {
         map(
             preceded(
                 tag_no_case("TIMESTAMP"),
-                tuple((opt(delimited_u32), with_or_without_timezone)),
+                tuple((opt(paren_delimited(u32)), with_or_without_timezone)),
             ),
             |(precision, tz_info)| DataType::Timestamp(precision, tz_info),
         ),
         map(
             preceded(
                 tag_no_case("TIME"),
-                tuple((opt(delimited_u32), with_or_without_timezone)),
+                tuple((opt(paren_delimited(u32)), with_or_without_timezone)),
             ),
             |(precision, tz_info)| DataType::Time(precision, tz_info),
         ),
@@ -176,28 +160,24 @@ fn datetime_type(i: &[u8]) -> IResult<&[u8], DataType> {
 }
 
 fn opt_character_length(i: &[u8]) -> IResult<&[u8], Option<CharacterLength>> {
-    let (i, opt_character_length) = opt(delimited(
-        tuple((left_paren, multispace0)),
-        tuple((u32, opt(preceded(multispace1, char_length_units)))),
-        tuple((multispace0, right_paren)),
-    ))(i)?;
-
-    if let Some((length, opt_units)) = opt_character_length {
-        let mut character_length = CharacterLength::new(length);
-        if let Some(units) = opt_units {
-            character_length.with_units(units);
-        }
-        Ok((i, Some(character_length)))
-    } else {
-        Ok((i, None))
-    }
+    map(
+        opt(paren_delimited(pair(
+            u32,
+            opt(preceded_ws1(char_length_units)),
+        ))),
+        |opt_character_length| {
+            if let Some((length, opt_units)) = opt_character_length {
+                Some(*CharacterLength::new(length).with_opt_units(opt_units))
+            } else {
+                None
+            }
+        },
+    )(i)
 }
 
 fn character_large_object_length(i: &[u8]) -> IResult<&[u8], CharacterLargeObjectLength> {
-    let (i, (length, opt_units)) = tuple((
-        large_object_length,
-        opt(preceded(multispace1, char_length_units)),
-    ))(i)?;
+    let (i, (length, opt_units)) =
+        tuple((large_object_length, opt(preceded_ws1(char_length_units))))(i)?;
 
     let mut character_length = CharacterLargeObjectLength::new(length);
     if let Some(units) = opt_units {
@@ -208,7 +188,7 @@ fn character_large_object_length(i: &[u8]) -> IResult<&[u8], CharacterLargeObjec
 }
 
 fn large_object_length(i: &[u8]) -> IResult<&[u8], LargeObjectLength> {
-    let (i, (length, opt_multiplier)) = tuple((u32, opt(preceded(multispace0, multiplier))))(i)?;
+    let (i, (length, opt_multiplier)) = pair(u32, opt(multiplier))(i)?;
 
     let mut large_object_length = LargeObjectLength::new(length);
     if let Some(multiplier) = opt_multiplier {
@@ -237,30 +217,21 @@ fn char_length_units(i: &[u8]) -> IResult<&[u8], CharLengthUnits> {
 
 fn exact_number_info(i: &[u8]) -> IResult<&[u8], ExactNumberInfo> {
     alt((
-        delimited(
-            tuple((multispace0, left_paren)),
-            map(
-                tuple((u32, preceded(tuple((multispace0, comma, multispace0)), u32))),
-                |(precision, scale)| ExactNumberInfo::PrecisionAndScale(precision, scale),
-            ),
-            tuple((multispace0, right_paren)),
+        map(
+            paren_delimited(separated_pair(u32, delimited_ws0(comma), u32)),
+            |(precision, scale)| ExactNumberInfo::PrecisionAndScale(precision, scale),
         ),
-        delimited(
-            tuple((multispace0, left_paren)),
-            map(u32, ExactNumberInfo::Precision),
-            tuple((multispace0, right_paren)),
-        ),
+        map(paren_delimited(u32), ExactNumberInfo::Precision),
         map(tag(""), |_| ExactNumberInfo::None),
     ))(i)
 }
 
 fn with_or_without_timezone(i: &[u8]) -> IResult<&[u8], WithOrWithoutTimeZone> {
     alt((
-        map(
-            tuple((multispace1, tag_no_case("WITHOUT TIME ZONE"))),
-            |_| WithOrWithoutTimeZone::WithoutTimeZone,
-        ),
-        map(tuple((multispace1, tag_no_case("WITH TIME ZONE"))), |_| {
+        map(preceded_ws1(tag_no_case("WITHOUT TIME ZONE")), |_| {
+            WithOrWithoutTimeZone::WithoutTimeZone
+        }),
+        map(preceded_ws1(tag_no_case("WITH TIME ZONE")), |_| {
             WithOrWithoutTimeZone::WithTimeZone
         }),
         map(tag(""), |_| WithOrWithoutTimeZone::None),

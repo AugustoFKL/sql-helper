@@ -1,11 +1,10 @@
 use nom::bytes::complete::tag_no_case;
-use nom::character::complete::multispace1;
-use nom::sequence::{delimited, terminated, tuple};
+use nom::sequence::{delimited, pair};
 use nom::IResult;
 
 use crate::ansi::ast::drop_schema::DropSchema;
 use crate::ansi::parser::common::{drop_behavior, schema_name};
-use crate::common::parsers::statement_terminator;
+use crate::common::parsers::{statement_terminator, terminated_ws1};
 
 /// Parses a `DROP SCHEMA` statement.
 ///
@@ -15,13 +14,11 @@ use crate::common::parsers::statement_terminator;
 /// [(1)][`DropSchema`] for supported syntax.
 pub fn drop_schema(i: &[u8]) -> IResult<&[u8], DropSchema> {
     let (i, (schema_name, drop_behavior)) = delimited(
-        tuple((
-            tag_no_case("DROP"),
-            multispace1,
-            tag_no_case("SCHEMA"),
-            multispace1,
-        )),
-        tuple((terminated(schema_name, multispace1), drop_behavior)),
+        pair(
+            terminated_ws1(tag_no_case("DROP")),
+            terminated_ws1(tag_no_case("SCHEMA")),
+        ),
+        pair(terminated_ws1(schema_name), drop_behavior),
         statement_terminator,
     )(i)?;
 

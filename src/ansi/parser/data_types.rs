@@ -26,6 +26,7 @@ pub fn data_type(input: &[u8]) -> IResult<&[u8], DataType> {
     alt((
         character_large_object_types,
         character_string,
+        binary_string_types,
         decimal_floating_point_type,
         exact_numeric_type,
         approximate_numeric_type,
@@ -90,6 +91,46 @@ fn character_large_object_types(input: &[u8]) -> IResult<&[u8], DataType> {
                 opt(paren_delimited(character_large_object_length)),
             ),
             DataType::Clob,
+        ),
+    ))(input)
+}
+
+fn binary_string_types(input: &[u8]) -> IResult<&[u8], DataType> {
+    alt((
+        map(
+            preceded(
+                tag_no_case("BINARY LARGE OBJECT"),
+                opt(preceded_ws0(paren_delimited(large_object_length))),
+            ),
+            DataType::BinaryLargeObject,
+        ),
+        map(
+            preceded(
+                tag_no_case("BLOB"),
+                opt(preceded_ws0(paren_delimited(large_object_length))),
+            ),
+            DataType::Blob,
+        ),
+        map(
+            preceded(
+                tag_no_case("VARBINARY"),
+                opt(preceded_ws0(paren_delimited(u32))),
+            ),
+            DataType::Varbinary,
+        ),
+        map(
+            preceded(
+                tag_no_case("BINARY VARYING"),
+                opt(preceded_ws0(paren_delimited(u32))),
+            ),
+            DataType::BinaryVarying,
+        ),
+        map(
+            preceded(
+                tag_no_case("BINARY"),
+                opt(preceded_ws0(paren_delimited(u32))),
+            ),
+            DataType::Binary,
         ),
     ))(input)
 }
@@ -505,6 +546,35 @@ mod tests {
                     *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
                 )
                 .with_units(CharLengthUnits::Characters)
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_binary_string_type() {
+        assert_expected_data_type!("BINARY", DataType::Binary(None));
+        assert_expected_data_type!("BINARY(20)", DataType::Binary(Some(20)));
+        assert_expected_data_type!("BINARY VARYING", DataType::BinaryVarying(None));
+        assert_expected_data_type!("BINARY VARYING(20)", DataType::BinaryVarying(Some(20)));
+        assert_expected_data_type!("VARBINARY", DataType::Varbinary(None));
+        assert_expected_data_type!("VARBINARY(20)", DataType::Varbinary(Some(20)));
+        assert_expected_data_type!("BINARY LARGE OBJECT", DataType::BinaryLargeObject(None));
+        assert_expected_data_type!(
+            "BINARY LARGE OBJECT(20)",
+            DataType::BinaryLargeObject(Some(LargeObjectLength::new(20)))
+        );
+        assert_expected_data_type!(
+            "BINARY LARGE OBJECT(20K)",
+            DataType::BinaryLargeObject(Some(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
+            ))
+        );
+        assert_expected_data_type!("BLOB", DataType::Blob(None));
+        assert_expected_data_type!("BLOB(20)", DataType::Blob(Some(LargeObjectLength::new(20))));
+        assert_expected_data_type!(
+            "BLOB(20K)",
+            DataType::Blob(Some(
+                *LargeObjectLength::new(20).with_multiplier(Multiplier::K)
             ))
         );
     }

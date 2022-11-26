@@ -31,6 +31,17 @@ pub enum DataType {
     CharLargeObject(Option<CharacterLargeObjectLength>),
     /// `CLOB[<character large object length>]`.
     Clob(Option<CharacterLargeObjectLength>),
+    /// `BINARY [<left paren> <length> <right paren>]`.
+    Binary(Option<u32>),
+    /// `BINARY VARYING [<left paren> <length> <right paren>]`.
+    BinaryVarying(Option<u32>),
+    /// `VARBINARY [<left paren> <length> <right paren>]`.
+    Varbinary(Option<u32>),
+    /// `BINARY LARGE OBJECT [<left paren> <large object length> <right
+    /// paren>]`.
+    BinaryLargeObject(Option<LargeObjectLength>),
+    /// `BLOB [<left paren> <large object length> <right paren>]`.
+    Blob(Option<LargeObjectLength>),
     /// `NUMERIC[(<precision>, [<scale>])]`
     Numeric(ExactNumberInfo),
     /// `DECIMAL[(<precision>, [<scale>])]`
@@ -246,6 +257,42 @@ impl fmt::Display for DataType {
                     write!(f, "({character_large_object_length})")?;
                 }
             }
+            DataType::Binary(opt_len) => {
+                write!(f, "BINARY")?;
+
+                if let Some(len) = opt_len {
+                    write!(f, "({len})")?;
+                }
+            }
+            DataType::BinaryVarying(opt_len) => {
+                write!(f, "BINARY VARYING")?;
+
+                if let Some(len) = opt_len {
+                    write!(f, "({len})")?;
+                }
+            }
+            DataType::Varbinary(opt_len) => {
+                write!(f, "VARBINARY")?;
+
+                if let Some(len) = opt_len {
+                    write!(f, "({len})")?;
+                }
+            }
+            DataType::BinaryLargeObject(opt_large_object_len) => {
+                write!(f, "BINARY LARGE OBJECT")?;
+
+                if let Some(large_object_len) = opt_large_object_len {
+                    write!(f, "({large_object_len})")?;
+                }
+            }
+            DataType::Blob(opt_large_object_len) => {
+                write!(f, "BLOB")?;
+
+                if let Some(large_object_len) = opt_large_object_len {
+                    write!(f, "({large_object_len})")?;
+                }
+            }
+
             Self::Numeric(exact_number_info) => {
                 write!(f, "NUMERIC{exact_number_info}")?;
             }

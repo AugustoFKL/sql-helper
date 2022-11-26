@@ -46,7 +46,7 @@ impl Ident {
     }
 
     #[must_use]
-    pub fn quote_style(&self) -> &QuoteStyle {
+    pub const fn quote_style(&self) -> &QuoteStyle {
         &self.quote_style
     }
 }
@@ -79,10 +79,9 @@ pub fn display_comma_separated(list: &[impl ToString]) -> String {
 
 #[must_use]
 pub fn if_some_string_preceded_by(opt_item: Option<impl ToString>, preceded_by: &str) -> String {
-    match opt_item {
-        None => String::default(),
-        Some(item) => format!("{preceded_by}{}", item.to_string()),
-    }
+    opt_item.map_or_else(String::default, |item| {
+        format!("{preceded_by}{}", item.to_string())
+    })
 }
 
 #[cfg(test)]

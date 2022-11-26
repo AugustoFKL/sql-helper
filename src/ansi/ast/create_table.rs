@@ -89,17 +89,17 @@ impl CreateTable {
     }
 
     #[must_use]
-    pub fn opt_table_scope(&self) -> Option<TableScope> {
+    pub const fn opt_table_scope(&self) -> Option<TableScope> {
         self.opt_table_scope
     }
 
     #[must_use]
-    pub fn table_name(&self) -> &TableName {
+    pub const fn table_name(&self) -> &TableName {
         &self.table_name
     }
 
     #[must_use]
-    pub fn table_contents_source(&self) -> &TableContentsSource {
+    pub const fn table_contents_source(&self) -> &TableContentsSource {
         &self.table_contents_source
     }
 }

@@ -27,7 +27,7 @@ use nom::{Compare, IResult, InputTake};
 ///
 /// # Examples
 /// ```rust
-/// use sql_helper::common::tokens::is_whitespace;
+/// # use sql_helper::common::tokens::is_whitespace;
 /// let list = [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0x85, 0xA0];
 ///
 /// for item in list {

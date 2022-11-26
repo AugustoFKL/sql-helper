@@ -67,9 +67,9 @@ pub fn ident(i: &[u8]) -> IResult<&[u8], Ident> {
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::IResult;
-/// use sql_helper::common::parsers::whitespace0;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::whitespace0;
 ///
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     whitespace0(s)
@@ -98,11 +98,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::error::{Error, ErrorKind};
-/// use nom::Err;
-/// use nom::IResult;
-/// use sql_helper::common::parsers::whitespace1;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::Err;
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::whitespace1;
 ///
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     whitespace1(s)
@@ -142,11 +142,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::error::{Error, ErrorKind};
-/// use nom::Err;
-/// use nom::IResult;
-/// use sql_helper::common::parsers::delimited_ws0;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::Err;
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::delimited_ws0;
 ///
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     delimited_ws0(tag_no_case("Potato"))(s)
@@ -183,11 +183,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::error::{Error, ErrorKind};
-/// use nom::Err;
-/// use nom::IResult;
-/// use sql_helper::common::parsers::preceded_ws0;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::Err;
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::preceded_ws0;
 ///
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     preceded_ws0(tag_no_case("Potato"))(s)
@@ -223,11 +223,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::error::{Error, ErrorKind};
-/// use nom::Err;
-/// use nom::IResult;
-/// use sql_helper::common::parsers::terminated_ws0;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::Err;
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::terminated_ws0;
 ///
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     terminated_ws0(tag_no_case("Potato"))(s)
@@ -265,11 +265,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::error::{Error, ErrorKind};
-/// use nom::Err;
-/// use nom::IResult;
-/// use sql_helper::common::parsers::delimited_ws1;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::Err;
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::delimited_ws1;
 ///
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     delimited_ws1(tag_no_case("Potato"))(s)
@@ -312,11 +312,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::error::{Error, ErrorKind};
-/// use nom::Err;
-/// use nom::IResult;
-/// use sql_helper::common::parsers::preceded_ws1;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::Err;
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::preceded_ws1;
 ///
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     preceded_ws1(tag_no_case("Potato"))(s)
@@ -355,11 +355,11 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::error::{Error, ErrorKind};
-/// use nom::Err;
-/// use nom::IResult;
-/// use sql_helper::common::parsers::terminated_ws1;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::Err;
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::terminated_ws1;
 ///
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     terminated_ws1(tag_no_case("Potato"))(s)
@@ -395,10 +395,10 @@ where
 ///
 /// # Examples
 /// ```rust
-/// use nom::bytes::complete::tag_no_case;
-/// use nom::error::{Error, ErrorKind};
-/// use nom::IResult;
-/// use sql_helper::common::parsers::paren_delimited;
+/// # use nom::bytes::complete::tag_no_case;
+/// # use nom::error::{Error, ErrorKind};
+/// # use nom::IResult;
+/// # use sql_helper::common::parsers::paren_delimited;
 /// fn parser(s: &str) -> IResult<&str, &str> {
 ///     paren_delimited(tag_no_case("Potato"))(s)
 /// }

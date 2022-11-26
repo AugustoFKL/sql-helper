@@ -25,12 +25,12 @@ impl DropTable {
     }
 
     #[must_use]
-    pub fn table_name(&self) -> &TableName {
+    pub const fn table_name(&self) -> &TableName {
         &self.table_name
     }
 
     #[must_use]
-    pub fn drop_behavior(&self) -> DropBehavior {
+    pub const fn drop_behavior(&self) -> DropBehavior {
         self.drop_behavior
     }
 }

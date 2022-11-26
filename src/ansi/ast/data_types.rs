@@ -257,35 +257,35 @@ impl fmt::Display for DataType {
                     write!(f, "({character_large_object_length})")?;
                 }
             }
-            DataType::Binary(opt_len) => {
+            Self::Binary(opt_len) => {
                 write!(f, "BINARY")?;
 
                 if let Some(len) = opt_len {
                     write!(f, "({len})")?;
                 }
             }
-            DataType::BinaryVarying(opt_len) => {
+            Self::BinaryVarying(opt_len) => {
                 write!(f, "BINARY VARYING")?;
 
                 if let Some(len) = opt_len {
                     write!(f, "({len})")?;
                 }
             }
-            DataType::Varbinary(opt_len) => {
+            Self::Varbinary(opt_len) => {
                 write!(f, "VARBINARY")?;
 
                 if let Some(len) = opt_len {
                     write!(f, "({len})")?;
                 }
             }
-            DataType::BinaryLargeObject(opt_large_object_len) => {
+            Self::BinaryLargeObject(opt_large_object_len) => {
                 write!(f, "BINARY LARGE OBJECT")?;
 
                 if let Some(large_object_len) = opt_large_object_len {
                     write!(f, "({large_object_len})")?;
                 }
             }
-            DataType::Blob(opt_large_object_len) => {
+            Self::Blob(opt_large_object_len) => {
                 write!(f, "BLOB")?;
 
                 if let Some(large_object_len) = opt_large_object_len {
@@ -366,7 +366,7 @@ impl fmt::Display for DataType {
 
 impl CharacterLength {
     #[must_use]
-    pub fn new(length: u32) -> Self {
+    pub const fn new(length: u32) -> Self {
         Self {
             length,
             opt_units: None,
@@ -384,12 +384,12 @@ impl CharacterLength {
     }
 
     #[must_use]
-    pub fn length(&self) -> u32 {
+    pub const fn length(&self) -> u32 {
         self.length
     }
 
     #[must_use]
-    pub fn opt_units(&self) -> Option<CharLengthUnits> {
+    pub const fn opt_units(&self) -> Option<CharLengthUnits> {
         self.opt_units
     }
 }
@@ -418,7 +418,7 @@ impl fmt::Display for CharLengthUnits {
 
 impl CharacterLargeObjectLength {
     #[must_use]
-    pub fn new(length: LargeObjectLength) -> Self {
+    pub const fn new(length: LargeObjectLength) -> Self {
         Self {
             length,
             opt_units: None,
@@ -431,12 +431,12 @@ impl CharacterLargeObjectLength {
     }
 
     #[must_use]
-    pub fn length(&self) -> LargeObjectLength {
+    pub const fn length(&self) -> LargeObjectLength {
         self.length
     }
 
     #[must_use]
-    pub fn opt_units(&self) -> Option<CharLengthUnits> {
+    pub const fn opt_units(&self) -> Option<CharLengthUnits> {
         self.opt_units
     }
 }
@@ -455,7 +455,7 @@ impl fmt::Display for CharacterLargeObjectLength {
 
 impl LargeObjectLength {
     #[must_use]
-    pub fn new(length: u32) -> Self {
+    pub const fn new(length: u32) -> Self {
         Self {
             length,
             multiplier: None,
@@ -468,12 +468,12 @@ impl LargeObjectLength {
     }
 
     #[must_use]
-    pub fn length(&self) -> u32 {
+    pub const fn length(&self) -> u32 {
         self.length
     }
 
     #[must_use]
-    pub fn opt_multiplier(&self) -> Option<Multiplier> {
+    pub const fn opt_multiplier(&self) -> Option<Multiplier> {
         self.multiplier
     }
 }

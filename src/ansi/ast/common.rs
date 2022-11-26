@@ -182,12 +182,12 @@ impl SchemaName {
     }
 
     #[must_use]
-    pub fn name(&self) -> &Ident {
+    pub const fn name(&self) -> &Ident {
         &self.name
     }
 
     #[must_use]
-    pub fn opt_catalog_name(&self) -> Option<&Ident> {
+    pub const fn opt_catalog_name(&self) -> Option<&Ident> {
         self.opt_catalog_name.as_ref()
     }
 }
@@ -219,12 +219,12 @@ impl TableName {
     }
 
     #[must_use]
-    pub fn name(&self) -> &Ident {
+    pub const fn name(&self) -> &Ident {
         &self.name
     }
 
     #[must_use]
-    pub fn opt_local_or_schema(&self) -> Option<&LocalOrSchemaQualifier> {
+    pub const fn opt_local_or_schema(&self) -> Option<&LocalOrSchemaQualifier> {
         self.opt_local_or_schema.as_ref()
     }
 }
@@ -275,12 +275,12 @@ impl ColumnDefinition {
     }
 
     #[must_use]
-    pub fn column_name(&self) -> &Ident {
+    pub const fn column_name(&self) -> &Ident {
         &self.column_name
     }
 
     #[must_use]
-    pub fn opt_data_type(&self) -> Option<DataType> {
+    pub const fn opt_data_type(&self) -> Option<DataType> {
         self.opt_data_type
     }
 }
@@ -328,12 +328,12 @@ impl fmt::Display for ReferentialAction {
 
 impl DeleteRule {
     #[must_use]
-    pub fn new(referential_action: ReferentialAction) -> Self {
+    pub const fn new(referential_action: ReferentialAction) -> Self {
         Self { referential_action }
     }
 
     #[must_use]
-    pub fn referential_action(&self) -> ReferentialAction {
+    pub const fn referential_action(&self) -> ReferentialAction {
         self.referential_action
     }
 }
@@ -347,12 +347,12 @@ impl fmt::Display for DeleteRule {
 
 impl UpdateRule {
     #[must_use]
-    pub fn new(referential_action: ReferentialAction) -> Self {
+    pub const fn new(referential_action: ReferentialAction) -> Self {
         Self { referential_action }
     }
 
     #[must_use]
-    pub fn referential_action(&self) -> ReferentialAction {
+    pub const fn referential_action(&self) -> ReferentialAction {
         self.referential_action
     }
 }

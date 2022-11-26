@@ -1,5 +1,4 @@
 use spectral::assert_that;
-
 use sql_helper::ansi;
 use sql_helper::ansi::ast::common::{
     DropBehavior, LocalOrSchemaQualifier, LocalQualifier, SchemaName, TableName,

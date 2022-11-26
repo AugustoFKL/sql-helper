@@ -163,6 +163,15 @@ pub struct ColumnNameList {
     column_names: Vec<Ident>,
 }
 
+/// System versioning clause
+///
+/// # Supported syntax
+/// ```plaintext
+/// SYSTEM VERSIONING CLAUSE
+/// ```
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub struct SystemVersioningClause {}
+
 impl SchemaName {
     #[must_use]
     pub fn new(opt_catalog_name: Option<&Ident>, name: &Ident) -> Self {
@@ -405,6 +414,13 @@ impl ColumnNameList {
 impl fmt::Display for ColumnNameList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", display_comma_separated(self.column_names()))?;
+        Ok(())
+    }
+}
+
+impl fmt::Display for SystemVersioningClause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SYSTEM VERSIONING")?;
         Ok(())
     }
 }

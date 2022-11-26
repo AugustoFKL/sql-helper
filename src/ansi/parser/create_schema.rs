@@ -1,13 +1,12 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
-use nom::character::complete::multispace1;
 use nom::combinator::map;
-use nom::sequence::{delimited, preceded, terminated, tuple};
+use nom::sequence::{delimited, pair, preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::ast::create_schema::{CreateSchema, SchemaNameClause};
 use crate::ansi::parser::common::schema_name;
-use crate::common::parsers::{ident, statement_terminator};
+use crate::common::parsers::{delimited_ws1, ident, statement_terminator, terminated_ws1};
 
 /// Parses a `CREATE SCHEMA` statement [(1)](SchemaNameClause).
 ///
@@ -18,10 +17,8 @@ use crate::common::parsers::{ident, statement_terminator};
 pub fn create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
     let (i, schema_name_clause) = delimited(
         tuple((
-            tag_no_case("CREATE"),
-            multispace1,
-            tag_no_case("SCHEMA"),
-            multispace1,
+            terminated_ws1(tag_no_case("CREATE")),
+            terminated_ws1(tag_no_case("SCHEMA")),
         )),
         schema_name_clause,
         statement_terminator,
@@ -41,19 +38,16 @@ pub fn create_schema(i: &[u8]) -> IResult<&[u8], CreateSchema> {
 pub fn schema_name_clause(i: &[u8]) -> IResult<&[u8], SchemaNameClause> {
     let (remaining, (schema_name_clause,)) = tuple((alt((
         map(
-            tuple((
-                terminated(
-                    schema_name,
-                    tuple((multispace1, tag_no_case("AUTHORIZATION"), multispace1)),
-                ),
+            pair(
+                terminated(schema_name, delimited_ws1(tag_no_case("AUTHORIZATION"))),
                 ident,
-            )),
+            ),
             |(schema_name, authorization_name)| {
                 SchemaNameClause::NamedAuthorization(schema_name, authorization_name)
             },
         ),
         map(
-            preceded(tuple((tag_no_case("AUTHORIZATION"), multispace1)), ident),
+            preceded(terminated_ws1(tag_no_case("AUTHORIZATION")), ident),
             SchemaNameClause::Authorization,
         ),
         map(schema_name, SchemaNameClause::Simple),

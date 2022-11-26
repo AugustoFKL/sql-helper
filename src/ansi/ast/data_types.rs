@@ -331,6 +331,11 @@ impl CharacterLength {
         self
     }
 
+    pub fn with_opt_units(&mut self, units: Option<CharLengthUnits>) -> &mut Self {
+        self.opt_units = units;
+        self
+    }
+
     #[must_use]
     pub fn length(&self) -> u32 {
         self.length

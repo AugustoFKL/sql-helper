@@ -1,9 +1,8 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
-use nom::character::complete::{multispace0, multispace1};
 use nom::combinator::{map, opt, peek};
 use nom::multi::separated_list1;
-use nom::sequence::{preceded, terminated, tuple};
+use nom::sequence::{pair, preceded, terminated, tuple};
 use nom::IResult;
 
 use crate::ansi::ast::common::{
@@ -12,7 +11,7 @@ use crate::ansi::ast::common::{
     TableName, UpdateRule,
 };
 use crate::ansi::parser::data_types::data_type;
-use crate::common::parsers::ident;
+use crate::common::parsers::{delimited_ws0, ident, preceded_ws1, terminated_ws1};
 use crate::common::tokens::{comma, period};
 
 /// Parses a schema name [(1)](SchemaName).
@@ -23,7 +22,7 @@ use crate::common::tokens::{comma, period};
 pub fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
     alt((
         map(
-            tuple((terminated(ident, period), ident)),
+            pair(terminated(ident, period), ident),
             |(catalog, schema)| SchemaName::new(Some(&catalog), &schema),
         ),
         map(ident, |schema| SchemaName::new(None, &schema)),
@@ -37,7 +36,7 @@ pub fn schema_name(i: &[u8]) -> IResult<&[u8], SchemaName> {
 /// function call will fail.
 pub fn table_name(i: &[u8]) -> IResult<&[u8], TableName> {
     let (i, (opt_local_or_schema, name)) =
-        tuple((opt(terminated(local_or_schema_qualifier, period)), ident))(i)?;
+        pair(opt(terminated(local_or_schema_qualifier, period)), ident)(i)?;
 
     let mut table_name = TableName::new(&name);
     if let Some(local_or_schema) = opt_local_or_schema {
@@ -101,8 +100,7 @@ pub fn local_qualifier(i: &[u8]) -> IResult<&[u8], LocalQualifier> {
 /// call will fail. Check the described syntax on column definition structure to
 /// understand the supported syntax.
 pub fn column_definition(i: &[u8]) -> IResult<&[u8], ColumnDefinition> {
-    let (i, (column_name, opt_data_type)) =
-        tuple((ident, opt(preceded(multispace1, data_type))))(i)?;
+    let (i, (column_name, opt_data_type)) = pair(ident, opt(preceded_ws1(data_type)))(i)?;
 
     let mut column_def = ColumnDefinition::new(&column_name);
 
@@ -150,10 +148,7 @@ pub fn referential_action(i: &[u8]) -> IResult<&[u8], ReferentialAction> {
 /// error.
 pub fn delete_rule(i: &[u8]) -> IResult<&[u8], DeleteRule> {
     map(
-        preceded(
-            tuple((tag_no_case("ON DELETE"), multispace1)),
-            referential_action,
-        ),
+        preceded(terminated_ws1(tag_no_case("ON DELETE")), referential_action),
         DeleteRule::new,
     )(i)
 }
@@ -166,10 +161,7 @@ pub fn delete_rule(i: &[u8]) -> IResult<&[u8], DeleteRule> {
 /// error.
 pub fn update_rule(i: &[u8]) -> IResult<&[u8], UpdateRule> {
     map(
-        preceded(
-            tuple((tag_no_case("ON UPDATE"), multispace1)),
-            referential_action,
-        ),
+        preceded(terminated_ws1(tag_no_case("ON UPDATE")), referential_action),
         UpdateRule::new,
     )(i)
 }
@@ -182,11 +174,11 @@ pub fn update_rule(i: &[u8]) -> IResult<&[u8], UpdateRule> {
 pub fn referential_triggered_action(i: &[u8]) -> IResult<&[u8], ReferentialTriggeredAction> {
     alt((
         map(
-            tuple((update_rule, opt(preceded(multispace1, delete_rule)))),
+            pair(update_rule, opt(preceded_ws1(delete_rule))),
             |(update, opt_delete)| ReferentialTriggeredAction::UpdateFirst(update, opt_delete),
         ),
         map(
-            tuple((delete_rule, opt(preceded(multispace1, update_rule)))),
+            pair(delete_rule, opt(preceded_ws1(update_rule))),
             |(delete, opt_update)| ReferentialTriggeredAction::DeleteFirst(delete, opt_update),
         ),
     ))(i)
@@ -211,10 +203,9 @@ pub fn match_type(i: &[u8]) -> IResult<&[u8], MatchType> {
 /// If the column list has invalid identifiers, or if there's no columns to be
 /// parsed, this function call will return an error.
 pub fn column_name_list(i: &[u8]) -> IResult<&[u8], ColumnNameList> {
-    map(
-        separated_list1(tuple((multispace0, comma, multispace0)), ident),
-        |list| ColumnNameList::new(&list),
-    )(i)
+    map(separated_list1(delimited_ws0(comma), ident), |list| {
+        ColumnNameList::new(&list)
+    })(i)
 }
 
 #[cfg(test)]

@@ -1,10 +1,9 @@
 use nom::branch::{alt, permutation};
 use nom::bytes::complete::{tag, take_while1};
-use nom::character::complete;
-use nom::character::complete::{alpha1, line_ending, multispace0};
+use nom::character::complete::{alpha1, line_ending};
 use nom::combinator::{eof, map, peek};
 use nom::error::{ErrorKind, ParseError};
-use nom::sequence::{delimited, tuple};
+use nom::sequence::delimited;
 use nom::{AsChar, Compare, IResult, InputTake, InputTakeAtPosition, Parser};
 
 use crate::common::ast::SqlSpecialCharacter;
@@ -27,7 +26,7 @@ use crate::common::{is_sql_identifier, Ident, QuoteStyle};
 /// or an EOF, this function returns an error.
 pub fn statement_terminator(i: &[u8]) -> IResult<&[u8], ()> {
     let (remaining_input, _) =
-        delimited(multispace0, alt((tag(";"), line_ending, eof)), multispace0)(i)?;
+        delimited(whitespace0, alt((tag(";"), line_ending, eof)), whitespace0)(i)?;
 
     Ok((remaining_input, ()))
 }
@@ -58,19 +57,6 @@ pub fn ident(i: &[u8]) -> IResult<&[u8], Ident> {
     );
 
     alt((double_quoted_parse, unquoted))(i)
-}
-
-/// Parses a u32 that is delimited by parentheses with one or more spaces in
-/// both sides.
-///
-/// # Errors
-/// If the parser fails, will return an error.
-pub fn delimited_u32(i: &[u8]) -> IResult<&[u8], u32> {
-    delimited(
-        tuple((tag("("), multispace0)),
-        complete::u32,
-        tuple((multispace0, tag(")"))),
-    )(i)
 }
 
 /// Parses zero or more whitespace characters.
@@ -481,9 +467,10 @@ pub fn sql_special_character(i: &[u8]) -> IResult<&[u8], SqlSpecialCharacter> {
 
 #[cfg(test)]
 mod tests {
-    use crate::common::parsers::sql_special_character;
     use pretty_assertions::assert_str_eq;
     use test_case::test_case;
+
+    use crate::common::parsers::sql_special_character;
 
     #[test_case(" "; "space")]
     #[test_case(r#"""#; "double quote")]
